@@ -10,6 +10,7 @@ import net.minecraft.client.render.entity.BipedEntityRenderer;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.MobEntityRenderer;
+import net.minecraft.client.render.entity.feature.ArmorFeatureRenderer;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
 import net.minecraft.client.render.entity.model.BlazeEntityModel;
 import net.minecraft.client.render.entity.model.EntityModelLayers;
@@ -157,9 +158,13 @@ public final class NpcRenderers {
     static final class Biped extends BipedEntityRenderer<WowNpcEntity, TintedBiped> {
         private final Identifier fallback;
 
-        Biped(EntityRendererFactory.Context ctx, TintedBiped model, Identifier fallback) {
+        Biped(EntityRendererFactory.Context ctx, TintedBiped model, Identifier fallback, boolean armor) {
             super(ctx, model, 0.5f);
             this.fallback = fallback;
+            if (armor) {
+                addFeature(new ArmorFeatureRenderer<>(this, new BipedEntityModel<WowNpcEntity>(ctx.getPart(EntityModelLayers.PLAYER_INNER_ARMOR)),
+                        new BipedEntityModel<WowNpcEntity>(ctx.getPart(EntityModelLayers.PLAYER_OUTER_ARMOR)), ctx.getModelManager()));
+            }
         }
 
         @Override
@@ -191,9 +196,9 @@ public final class NpcRenderers {
 
         public Humanoid(EntityRendererFactory.Context ctx) {
             super(ctx);
-            zombie = new Biped(ctx, new TintedBiped(ctx.getPart(EntityModelLayers.ZOMBIE)), ZOMBIE);
-            skeleton = new Biped(ctx, new TintedBiped(ctx.getPart(EntityModelLayers.SKELETON)), VANILLA.get("skeleton"));
-            player = new Biped(ctx, new TintedBiped(ctx.getPart(EntityModelLayers.PLAYER)), VANILLA.get("steve"));
+            zombie = new Biped(ctx, new TintedBiped(ctx.getPart(EntityModelLayers.ZOMBIE)), ZOMBIE, false);
+            skeleton = new Biped(ctx, new TintedBiped(ctx.getPart(EntityModelLayers.SKELETON)), VANILLA.get("skeleton"), false);
+            player = new Biped(ctx, new TintedBiped(ctx.getPart(EntityModelLayers.PLAYER)), VANILLA.get("steve"), true);
         }
 
         private Biped pick(WowNpcEntity e) {

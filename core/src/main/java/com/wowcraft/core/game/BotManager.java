@@ -79,6 +79,7 @@ public final class BotManager {
         int level = com.wowcraft.core.combat.Formulas.MAX_LEVEL;
         CharacterBuilder.apply(server.engine, u, spec, level, CharacterBuilder.defaultTalents(spec, level), eq);
         u.tags.put("bot_ilvl", Math.round(eq.averageItemLevel()));
+        server.platform.showGear(u, eq);
         server.engine.resetUnit(u, false);
         BotBrain brain = new BotBrain(u);
         u.brain = brain;

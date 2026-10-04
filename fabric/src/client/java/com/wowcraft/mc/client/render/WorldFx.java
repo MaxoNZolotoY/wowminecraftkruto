@@ -55,8 +55,8 @@ public final class WorldFx {
         for (ClientState.Timed<S2C.Telegraph> t : ClientState.telegraphs.values()) telegraph(mc, m, t, td);
         for (ClientState.Timed<S2C.Area> a : ClientState.areas.values()) area(mc, m, a, td);
         nameplateBars(mc, ms, td);
-        if (quads > 0) BufferRenderer.drawWithGlobalProgram(buf.end());
-        else buf.end();
+        BufferBuilder.BuiltBuffer built = buf.endNullable();
+        if (built != null) BufferRenderer.drawWithGlobalProgram(built);
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
         RenderSystem.disableBlend();

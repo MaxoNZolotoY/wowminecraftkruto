@@ -302,6 +302,16 @@ public final class McPlatform implements Platform {
     }
 
     @Override
+    public void showGear(UnitState unit, Equipment equipment) {
+        if (!(unit.platform instanceof WowNpcEntity e) || equipment == null) return;
+        for (EquipmentSlot s : VANILLA_SLOTS) {
+            ItemData d = equipment.get(toWow(s));
+            e.equipStack(s, d != null ? WowItems.toStack(d) : ItemStack.EMPTY);
+            e.setEquipmentDropChance(s, 0f);
+        }
+    }
+
+    @Override
     public void removeBody(UnitState unit) {
         if (unit.platform instanceof WowNpcEntity e) {
             e.unit = null;

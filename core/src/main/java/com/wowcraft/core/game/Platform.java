@@ -57,6 +57,10 @@ public interface Platform {
 
     void removeBody(UnitState unit);
 
+    /** Shows equipment on an NPC body (bots carry their weapons and armor visibly). */
+    default void showGear(UnitState unit, Equipment equipment) {
+    }
+
     /** Moves an NPC / bot entity to another world (or position) keeping its unit. */
     void moveBody(UnitState unit, String worldKey, Vec3 pos);
 
