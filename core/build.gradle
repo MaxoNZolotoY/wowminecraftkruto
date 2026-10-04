@@ -1,0 +1,33 @@
+plugins {
+    id 'java-library'
+}
+
+group = project.maven_group
+version = project.mod_version
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Provided by Minecraft at runtime.
+    compileOnly "com.google.code.gson:gson:${project.gson_version}"
+
+    testImplementation "com.google.code.gson:gson:${project.gson_version}"
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events 'failed'
+        exceptionFormat 'full'
+    }
+}

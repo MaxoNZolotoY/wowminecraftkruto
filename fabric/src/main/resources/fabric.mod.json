@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "wowcraft",
+  "version": "${version}",
+  "name": "WoWCraft: Azeroth Reforged",
+  "description": "World of Warcraft-style classes, specs, talents, gear, dungeons, raids, Mythic+, arenas and battlegrounds with bots.",
+  "authors": ["wowminecraftkruto"],
+  "license": "MIT",
+  "icon": "assets/wowcraft/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.wowcraft.mc.WowCraftMod"],
+    "client": ["com.wowcraft.mc.client.WowCraftClient"]
+  },
+  "mixins": [
+    "wowcraft.mixins.json",
+    {
+      "config": "wowcraft.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}

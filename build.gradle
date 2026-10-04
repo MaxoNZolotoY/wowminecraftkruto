@@ -1,0 +1,8 @@
+// Shared configuration for all modules.
+subprojects {
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = 17
+        options.compilerArgs += ['-Xmaxerrs', '2000']
+    }
+}
