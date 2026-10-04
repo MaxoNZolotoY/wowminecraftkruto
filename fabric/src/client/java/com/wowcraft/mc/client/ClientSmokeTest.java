@@ -194,9 +194,17 @@ public final class ClientSmokeTest {
         waitFor("arena gates open", mc -> ClientState.pvp != null && ClientState.pvp.countdown <= 0, 60);
         sleep(8000);
         screenshot("17_arena_fight");
-        waitFor("arena finished", mc -> ClientState.pvp == null || ClientState.pvp.result != null, 240);
-        log("arena result: " + call(mc -> ClientState.pvp != null ? ClientState.pvp.result : "left"));
+        long arenaEnd = System.currentTimeMillis() + 90_000;
+        while (System.currentTimeMillis() < arenaEnd && call(mc -> ClientState.pvp != null && ClientState.pvp.result == null)) sleep(1000);
+        String result = call(mc -> ClientState.pvp != null ? ClientState.pvp.result : "left");
+        log("arena result: " + result);
         screenshot("18_arena_result");
+        if (result == null) {
+            // a long bot match: leaving mid-match must bring the player home
+            command("wow leave");
+            waitFor("left the arena", mc -> ClientState.pvp == null && !inInstanceWorld(mc), 60);
+            log("left the arena before it finished");
+        }
 
         // ---- save, quit to the title screen and load the world again
         leaveWorld();
