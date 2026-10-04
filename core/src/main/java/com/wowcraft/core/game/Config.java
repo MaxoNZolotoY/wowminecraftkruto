@@ -23,6 +23,8 @@ public final class Config {
     public boolean keepInventoryInWorld = false;
     /** Respawn players in instances at the last checkpoint instead of becoming a ghost. */
     public boolean instantReleaseInInstances = false;
+    /** Random seed for combat (0 = random each start). Fixed seeds make simulations reproducible. */
+    public long seed = 0;
     /** Debug: show extra info. */
     public boolean debug = false;
     public int battlegroundTeamSize = 5;

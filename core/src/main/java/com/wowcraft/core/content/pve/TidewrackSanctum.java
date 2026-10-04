@@ -135,7 +135,10 @@ public final class TidewrackSanctum extends NpcKit {
                 for (int i = 0; i < 3; i++) {
                     Vec3 p = randomPointAround(12, 14);
                     UnitState g = add("tide_globule", p);
-                    if (g != null) g.tags.put("heals_boss", true);
+                    if (g != null) {
+                        g.tags.put("heals_boss", true);
+                        g.tags.put("priority", true);
+                    }
                 }
             });
             every("bolt", 3, 4, null, null, () -> {

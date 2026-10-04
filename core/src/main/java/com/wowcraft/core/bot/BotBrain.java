@@ -169,7 +169,7 @@ public final class BotBrain {
             UnitState tt = tank.target();
             // kill priority adds (explosive orbs, shades) first
             for (UnitState e : engaged) {
-                if (e.templateId != null && (e.templateId.equals("explosive_orb") || e.templateId.equals("void_emissary"))) return e;
+                if (e.tags.containsKey("priority") || e.templateId != null && (e.templateId.equals("explosive_orb") || e.templateId.equals("void_emissary"))) return e;
             }
             return tt;
         }

@@ -43,6 +43,7 @@ class GameServerTest {
         System.setErr(new PrintStream(errors, true));
         platform = new FakePlatform();
         Config cfg = new Config();
+        cfg.seed = 20261004L;
         server = new GameServer(platform, cfg, new WorldData());
         platform.server = server;
     }
@@ -207,7 +208,7 @@ class GameServerTest {
         assertFalse(run.npcs.isEmpty());
         for (UnitState bot : g.bots) assertEquals(run.id, bot.instanceId);
         long valorBefore = s.profile.currency(Currency.VALORSTONES);
-        int wipes = clearRun(run, s, 240);
+        int wipes = clearRun(run, s, 420);
         tick(2);
         assertEquals(def.bossIds().size(), run.bossesKilled.size(), "all bosses killed");
         assertEquals(InstanceRun.State.COMPLETED, run.state);
@@ -237,7 +238,7 @@ class GameServerTest {
         assertEquals(3, s.profile.keystone.level, "key depletes on start");
         tick(11);
         assertTrue(run.mythic.started());
-        clearRun(run, s, 240);
+        clearRun(run, s, 420);
         tick(2);
         assertTrue(run.mythic.completed, "keystone completed, forces " + run.mythic.forcesPercent());
         assertTrue(s.profile.mythicBest.containsKey(def.id));

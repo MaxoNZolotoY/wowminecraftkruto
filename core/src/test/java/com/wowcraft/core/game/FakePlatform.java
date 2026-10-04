@@ -180,7 +180,12 @@ final class FakePlatform implements Platform {
             if (dest == null) continue;
             double d = b.pos.horizontalDistance(dest);
             if (d <= stopAt) continue;
-            double speed = 0.28 * (m.speedMult() <= 0 ? 1 : m.speedMult()) * (1 + u.stats().speedPct / 100.0);
+            double base = 0.28;
+            if (u.isNpcLike() && u.templateId != null) {
+                com.wowcraft.core.npc.NpcTemplate t = com.wowcraft.core.npc.NpcRegistry.get(u.templateId);
+                if (t != null) base = t.stationary ? 0 : t.moveSpeed;
+            }
+            double speed = base * (m.speedMult() <= 0 ? 1 : m.speedMult()) * (1 + u.stats().speedPct / 100.0);
             double step = Math.min(speed, d - stopAt + 0.05);
             Vec3 dir = new Vec3(dest.x() - b.pos.x(), 0, dest.z() - b.pos.z()).normalize();
             b.pos = b.pos.add(dir.mul(step));

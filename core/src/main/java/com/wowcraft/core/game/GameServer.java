@@ -71,7 +71,7 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
     final BotManager bots;
     final Commands commands;
     final WeeklyReset reset = WeeklyReset.standard();
-    final Rng rng = new Rng();
+    final Rng rng;
     final List<Encounter> worldEncounters = new ArrayList<>();
     private final Map<UUID, S2C.CombatTextBatch> pendingText = new HashMap<>();
     long week;
@@ -83,7 +83,8 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
         this.platform = platform;
         this.config = config;
         this.world = world;
-        this.engine = new CombatEngine(System.nanoTime());
+        this.rng = config.seed != 0 ? new Rng(config.seed) : new Rng();
+        this.engine = new CombatEngine(config.seed != 0 ? config.seed * 31 + 7 : System.nanoTime());
         this.engine.setWorld(this);
         this.engine.addListener(this);
         this.engine.setCastFilter(this::castFilter);

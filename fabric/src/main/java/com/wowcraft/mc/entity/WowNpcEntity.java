@@ -44,6 +44,8 @@ public class WowNpcEntity extends PathAwareEntity {
     private int navCooldown;
     private int orphanTicks;
     private boolean stationary;
+    /** Template walking speed (movement speed attribute before buffs / slows). */
+    private double baseSpeed = 0.3;
 
     public WowNpcEntity(EntityType<? extends PathAwareEntity> type, World world) {
         super(type, world);
@@ -87,6 +89,7 @@ public class WowNpcEntity extends PathAwareEntity {
         this.dataTracker.set(SCALE, (float) t.scale);
         this.dataTracker.set(KIND, kind.ordinal());
         this.stationary = t.stationary || kind == UnitKind.TOTEM;
+        this.baseSpeed = t.moveSpeed > 0 ? t.moveSpeed : 0.3;
         setCustomName(Text.literal(displayName));
         setCustomNameVisible(false);
         calculateDimensions();
@@ -99,6 +102,7 @@ public class WowNpcEntity extends PathAwareEntity {
         this.dataTracker.set(KIND, other.dataTracker.get(KIND));
         this.dataTracker.set(DEAD, other.dataTracker.get(DEAD));
         this.stationary = other.stationary;
+        this.baseSpeed = other.baseSpeed;
         setCustomName(other.getCustomName());
         calculateDimensions();
     }
@@ -170,7 +174,7 @@ public class WowNpcEntity extends PathAwareEntity {
             getNavigation().stop();
             return;
         }
-        double base = stationary ? 0.0 : 0.3 * Math.max(0.1, 1.0 + u.stats().speedPct / 100.0) * (u.canMove() ? 1.0 : 0.0);
+        double base = stationary ? 0.0 : baseSpeed * Math.max(0.1, 1.0 + u.stats().speedPct / 100.0) * (u.canMove() ? 1.0 : 0.0);
         var speedAttr = getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
         if (speedAttr != null && Math.abs(speedAttr.getBaseValue() - base) > 1e-3) speedAttr.setBaseValue(base);
         if (base <= 0) {
