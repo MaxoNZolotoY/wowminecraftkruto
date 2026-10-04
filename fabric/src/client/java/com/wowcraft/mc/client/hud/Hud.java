@@ -331,7 +331,7 @@ public final class Hud {
         S2C.InstanceStatus s = ClientState.instance;
         if (s == null) return y;
         int w = 156;
-        int h = 22 + s.bossNames.size() * 10 + (s.keyLevel > 0 ? 34 : 0);
+        int h = 14 + s.bossNames.size() * 10 + (s.keyLevel > 0 ? 27 + (s.deaths > 0 ? 10 : 0) : 0) + (s.battleRes >= 0 ? 10 : 0);
         ctx.fill(x - 2, y - 2, x + w + 2, y + h, 0x90000000);
         String title = ClientState.t(s.name) + (s.keyLevel > 0 ? " +" + s.keyLevel : "");
         ctx.drawText(tr, trim(tr, title, w), x, y, 0xFFFFD040, true);
@@ -377,8 +377,8 @@ public final class Hud {
             if (s.deaths > 0) {
                 String d = ClientState.t("Deaths: ", "Смерти: ") + s.deaths + " (-" + (int) (s.deaths * s.deathPenalty) + "s)";
                 ctx.drawText(tr, d, x, y, 0xFFFF8080, true);
+                y += 10;
             }
-            y += 0;
         }
         for (int i = 0; i < s.bossNames.size(); i++) {
             boolean dead = i < s.bossKilled.size() && s.bossKilled.get(i);

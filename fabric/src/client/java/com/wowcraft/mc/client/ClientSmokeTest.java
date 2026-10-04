@@ -43,6 +43,7 @@ public final class ClientSmokeTest {
     }
 
     private static final Set<String> seenScreens = new HashSet<>();
+    private static int experimentalPrompts;
 
     public static boolean enabled() {
         return Boolean.getBoolean("wowcraft.clientSmoke");
@@ -66,14 +67,7 @@ public final class ClientSmokeTest {
         if (failure == null) WowCraftMod.LOG.info("WOWCRAFT CLIENT SMOKE TEST PASSED");
         else WowCraftMod.LOG.error("WOWCRAFT CLIENT SMOKE TEST FAILED: {}", failure);
         try {
-            run(mc -> {
-                if (mc.world != null) {
-                    mc.world.disconnect();
-                    mc.disconnect(new MessageScreen(Text.translatable("menu.savingLevel")));
-                }
-                mc.setScreen(new TitleScreen());
-            });
-            waitFor("title screen after disconnect", mc -> mc.world == null && mc.currentScreen instanceof TitleScreen, 120);
+            leaveWorld();
         } catch (Throwable t) {
             WowCraftMod.LOG.error("Client smoke test: disconnect failed", t);
         }
@@ -170,6 +164,35 @@ public final class ClientSmokeTest {
         waitFor("arena finished", mc -> ClientState.pvp == null || ClientState.pvp.result != null, 240);
         log("arena result: " + call(mc -> ClientState.pvp != null ? ClientState.pvp.result : "left"));
         screenshot("18_arena_result");
+
+        // ---- save, quit to the title screen and load the world again
+        leaveWorld();
+        String folder;
+        try (java.util.stream.Stream<java.nio.file.Path> saves = java.nio.file.Files.list(call(mc -> mc.runDirectory.toPath().resolve("saves")))) {
+            folder = saves.filter(java.nio.file.Files::isDirectory).map(pth -> pth.getFileName().toString()).findFirst().orElseThrow();
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
+        log("reloading world " + folder);
+        run(mc -> mc.createIntegratedServerLoader().start(new TitleScreen(), folder));
+        enterWorld();
+        waitFor("character after reload", mc -> ClientState.character.classChosen, 60);
+        check("fire".equals(call(mc -> ClientState.character.spec)), "class and spec persisted across a reload");
+        check(!call(ClientSmokeTest::inInstanceWorld), "player is back in the normal world after a reload");
+        sleep(2000);
+        screenshot("19_reloaded");
+        check(experimentalPrompts == 0, "no experimental-settings prompts (seen " + experimentalPrompts + ")");
+    }
+
+    private static void leaveWorld() {
+        run(mc -> {
+            if (mc.world != null) {
+                mc.world.disconnect();
+                mc.disconnect(new MessageScreen(Text.translatable("menu.savingLevel")));
+            }
+            mc.setScreen(new TitleScreen());
+        });
+        waitFor("title screen after disconnect", mc -> mc.world == null && mc.currentScreen instanceof TitleScreen, 120);
     }
 
     /** Teleports next to the nearest enemy, targets it and presses ability keys for a while. */
@@ -259,7 +282,10 @@ public final class ClientSmokeTest {
                 Screen s = mc.currentScreen;
                 if (s == null || s instanceof LevelLoadingScreen || s instanceof MessageScreen || s instanceof CreateWorldScreen) return null;
                 String name = s.getClass().getName() + " \"" + s.getTitle().getString() + "\"";
-                if (seenScreens.add(name)) log("screen while entering the world: " + name);
+                if (seenScreens.add(name)) {
+                    log("screen while entering the world: " + name);
+                    if (s.getTitle().getString().toLowerCase(java.util.Locale.ROOT).contains("experimental")) experimentalPrompts++;
+                }
                 for (String key : new String[]{"gui.yes", "gui.proceed", "gui.continue", "selectWorld.backupJoinSkipButton", "gui.ok"}) {
                     if (pressNow(s, Text.translatable(key).getString())) {
                         log("pressed " + key);
