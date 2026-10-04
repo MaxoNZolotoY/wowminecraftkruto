@@ -139,7 +139,12 @@ public final class ClientSmokeTest {
             net.minecraft.entity.Entity h = sp.getServerWorld().getEntityById(huskId[0]);
             if (h != null) h.discard();
         });
-        waitFor("out of combat after the husk", mc -> ClientState.self != null && !ClientState.self.inCombat, 30);
+        try {
+            waitFor("out of combat after the husk", mc -> ClientState.self != null && !ClientState.self.inCombat, 30);
+        } catch (IllegalStateException e) {
+            combatDiagnostics();
+            throw e;
+        }
 
         // ---- screens
         openScreen("character", "06_character");
@@ -272,6 +277,30 @@ public final class ClientSmokeTest {
         sleep(1500);
         screenshot("20_spawn_eggs");
         check(experimentalPrompts == 0, "no experimental-settings prompts (seen " + experimentalPrompts + ")");
+    }
+
+    /** Server-side view of why the player is still in combat. */
+    private static void combatDiagnostics() {
+        server(sp -> {
+            com.wowcraft.core.game.GameServer g = WowCraftMod.game();
+            com.wowcraft.core.game.PlayerSession ps = g.session(sp.getUuid());
+            if (ps == null || ps.unit == null) return;
+            com.wowcraft.core.combat.UnitState me = ps.unit;
+            StringBuilder sb = new StringBuilder("combat diagnostics: now=").append(g.engine().now()).append(" lastCombat=").append(me.lastCombatAtPublic())
+                    .append(" inCombat=").append(me.inCombat()).append(" dead=").append(me.isDead()).append(" target=")
+                    .append(me.target() != null ? me.target().name : null).append(" engaged=[");
+            for (com.wowcraft.core.combat.UnitState e : me.engaged()) sb.append(e.name).append('/').append(e.kind).append("/alive=").append(e.isAlive()).append(' ');
+            sb.append("] nearby=[");
+            for (com.wowcraft.core.combat.UnitState u : g.engine().units()) {
+                if (u != me && u.position().distance(me.position()) < 48) {
+                    sb.append(u.name).append('/').append(u.kind).append('/').append(u.team).append("/combat=").append(u.inCombat())
+                            .append("/alive=").append(u.isAlive()).append(' ');
+                }
+            }
+            sb.append("] auras=[");
+            for (var a : me.auras().all()) sb.append(a.def.id).append(' ');
+            log(sb.append(']').toString());
+        });
     }
 
     private static void leaveWorld() {
