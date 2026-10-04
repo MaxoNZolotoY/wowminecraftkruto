@@ -514,6 +514,10 @@ public final class McPlatform implements Platform {
         }
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             var s = game.session(p.getUuid());
+            // creative players can't be killed by Minecraft: a WoW death outside the ghost system just restores them
+            if (s != null && s.unit != null && !s.ghost && s.unit.isDead() && p.isCreative() && !p.isDead()) {
+                game.engine().resurrect(s.unit, s.unit, 1.0);
+            }
             if (s == null || s.unit == null || s.ghost || s.unit.isDead() || p.isDead()) continue;
             float hp = (float) Math.max(0.5, p.getMaxHealth() * s.unit.healthFraction());
             if (Math.abs(p.getHealth() - hp) > 0.05f) p.setHealth(hp);
