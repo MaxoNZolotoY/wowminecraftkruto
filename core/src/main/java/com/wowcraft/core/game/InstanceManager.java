@@ -164,6 +164,16 @@ public final class InstanceManager {
         return null;
     }
 
+    /** Creates an instance without a group (server smoke tests, admin tools). */
+    public InstanceRun createStandalone(DungeonDef def, Difficulty diff) {
+        return create(def, diff, 0, null);
+    }
+
+    /** Creates a PvP map without a match (server smoke tests). */
+    public InstanceRun createStandaloneMap(DungeonDef def) {
+        return createPvpMap(def, "smoke");
+    }
+
     InstanceRun create(DungeonDef def, Difficulty diff, int keyLevel, Group g) {
         int slot = usedSlots.nextClearBit(0);
         if (slot >= MAX_SLOTS) {

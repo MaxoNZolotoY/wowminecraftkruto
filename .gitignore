@@ -10,3 +10,5 @@ run/
 .settings/
 bin/
 *.log
+fabric/run-smoke/
+fabric/run/

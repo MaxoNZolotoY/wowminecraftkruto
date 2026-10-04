@@ -30,3 +30,20 @@ jobs:
           name: wowcraft-mod
           path: fabric/build/libs/*.jar
           if-no-files-found: error
+
+      - name: Server smoke test
+        run: |
+          mkdir -p fabric/run-smoke
+          echo "eula=true" > fabric/run-smoke/eula.txt
+          printf 'level-type=minecraft\\:flat\nspawn-protection=0\nonline-mode=false\nview-distance=4\nsimulation-distance=4\n' > fabric/run-smoke/server.properties
+          timeout 900 ./gradlew :fabric:runSmoke --no-daemon > smoke.log 2>&1 || true
+          grep -E "smoke|WoWCraft|ERROR|Exception|Done \\(" smoke.log | tail -120
+          grep -q "WOWCRAFT SMOKE TEST PASSED" smoke.log
+
+      - name: Upload smoke test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-log
+          path: smoke.log
+          if-no-files-found: ignore

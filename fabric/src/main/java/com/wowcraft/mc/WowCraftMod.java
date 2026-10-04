@@ -88,5 +88,6 @@ public final class WowCraftMod implements ModInitializer {
             LOG.error("WoWCraft tick failed", e);
         }
         if (++ticks % (20 * 300) == 0) saveAll();
+        if (com.wowcraft.mc.server.SmokeTest.enabled()) com.wowcraft.mc.server.SmokeTest.tick(server);
     }
 }

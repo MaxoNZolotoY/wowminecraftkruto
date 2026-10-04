@@ -18,6 +18,18 @@ loom {
             sourceSet sourceSets.client
         }
     }
+
+    runs {
+        // Headless server self-test used by CI: ./gradlew :fabric:runSmoke
+        smoke {
+            server()
+            name "WoWCraft smoke test"
+            vmArg "-Dwowcraft.smoke=true"
+            programArg "--nogui"
+            runDir "run-smoke"
+            ideConfigGenerated false
+        }
+    }
 }
 
 // The pure-Java core is compiled straight into the mod jar (no extra library jar to ship).

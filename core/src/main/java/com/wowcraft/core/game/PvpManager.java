@@ -416,7 +416,10 @@ public final class PvpManager {
     /** Map built: spawn bots, move players in. */
     void onMapReady(InstanceRun run) {
         Match m = matches.get(run.pvpMatchId);
-        if (m == null) return;
+        if (m == null) {
+            run.state = InstanceRun.State.READY;
+            return;
+        }
         if (m.run == null) {
             // map built synchronously: finish setting up the match first
             m.run = run;
