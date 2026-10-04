@@ -218,4 +218,23 @@ class CombatEngineTest {
         for (int i = 0; i < 200; i++) b += engine.dealDamage(ctx, d1, School.FIRE, 100).amount;
         assertTrue(b > a * 1.4, "buffed damage " + b + " vs " + a);
     }
+
+    /** A spell landing after its target left the world (despawned mob) must not keep the caster in combat forever. */
+    @Test
+    void removedTargetDoesNotKeepCasterInCombat() {
+        engine = new CombatEngine(3);
+        UnitState p = player(engine, "P", 0, Spec.FIRE);
+        UnitState mob = engine.registerLocal("Husk", UnitKind.VANILLA, new TestBody(5, 0, 0));
+        mob.team = "monsters";
+        engine.setMaxHealthDirect(mob, 100000, true);
+        engine.enterCombat(p, mob);
+        engine.tick(0.1);
+        assertTrue(p.inCombat());
+        engine.remove(mob);
+        engine.enterCombat(p, mob); // a projectile in flight hits the removed mob
+        engine.aggro(mob, p, 10);
+        for (int i = 0; i < 80; i++) engine.tick(0.1);
+        assertFalse(p.inCombat(), "caster leaves combat after the usual timeout");
+        assertTrue(p.engaged().isEmpty(), "no stale engagement");
+    }
 }

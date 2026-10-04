@@ -131,6 +131,11 @@ public final class CombatEngine {
         return register(id, UUID.randomUUID(), name, kind, body);
     }
 
+    /** True while the unit is part of the simulation (removed units can still be referenced by projectiles, delayed effects...). */
+    public boolean registered(UnitState u) {
+        return u != null && units.get(u.id) == u;
+    }
+
     public void remove(UnitState u) {
         if (units.remove(u.id) == null) return;
         u.cast = null;
@@ -387,7 +392,7 @@ public final class CombatEngine {
             in = now - u.lastCombatAt < Formulas.COMBAT_TIMEOUT;
             if (!in) {
                 for (UnitState e : u.engaged) {
-                    if (e.isAlive() && e.threat != null && e.threat.raw().containsKey(u)) {
+                    if (e.isAlive() && registered(e) && e.threat != null && e.threat.raw().containsKey(u)) {
                         in = true;
                         break;
                     }
@@ -397,7 +402,7 @@ public final class CombatEngine {
         if (in != was) {
             u.inCombat = in;
             if (!in) {
-                u.engaged.removeIf(e -> !e.isAlive() || e.threat == null || !e.threat.raw().containsKey(u));
+                u.engaged.removeIf(e -> !e.isAlive() || !registered(e) || e.threat == null || !e.threat.raw().containsKey(u));
                 for (AuraInstance a : new ArrayList<>(u.auras.all())) if (a.def.removeOutOfCombat) removeAura(a, false);
                 if (u.isPlayerLike()) u.autoAttack = false;
             }
@@ -1108,7 +1113,7 @@ public final class CombatEngine {
                 rawHeal(src, src, hit.effective() * leech / 100.0);
             }
             // threat
-            if (target.threat != null) {
+            if (target.threat != null && registered(src) && registered(target)) {
                 double threat = (hit.effective() + hit.absorbed) * threatMultiplier(src, mc);
                 target.threat.add(src, threat);
             }
@@ -1276,7 +1281,7 @@ public final class CombatEngine {
             // healing threat: split among enemies engaged with the target
             if (target.inCombat) {
                 List<UnitState> enemies = new ArrayList<>();
-                for (UnitState e : target.engaged) if (e.isAlive() && e.threat != null && isHostile(e, src)) enemies.add(e);
+                for (UnitState e : target.engaged) if (e.isAlive() && registered(e) && e.threat != null && isHostile(e, src)) enemies.add(e);
                 if (!enemies.isEmpty()) {
                     double t = hit.effective() * 0.5 / enemies.size() * threatMultiplier(src, mc) / (src.role() == Role.TANK ? TANK_THREAT : 1);
                     for (UnitState e : enemies) {
@@ -1757,6 +1762,8 @@ public final class CombatEngine {
 
     public void enterCombat(UnitState a, UnitState b) {
         if (a == null || b == null || a == b) return;
+        // a projectile or delayed effect landing after one side left the world must not start a fight that can never end
+        if (!registered(a) || !registered(b)) return;
         if (!isHostile(a, b)) return;
         a.lastCombatAt = now;
         b.lastCombatAt = now;
@@ -1774,7 +1781,7 @@ public final class CombatEngine {
 
     /** Puts a unit on an NPC's threat list without damage (body pull, pack aggro). */
     public void aggro(UnitState npc, UnitState target, double amount) {
-        if (npc.threat == null || target == null || target.isDead()) return;
+        if (npc.threat == null || target == null || target.isDead() || !registered(npc) || !registered(target)) return;
         npc.threat.add(target, Math.max(0.01, amount));
         enterCombat(npc, target);
     }
