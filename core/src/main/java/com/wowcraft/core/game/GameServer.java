@@ -465,6 +465,23 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
         return commands.run(s, args == null ? "" : args.trim(), op);
     }
 
+    /** The player's Minecraft entity respawned after a world death. */
+    public void onRespawn(UUID uuid) {
+        PlayerSession s = sessions.get(uuid);
+        if (s == null || s.unit == null) return;
+        s.ghost = false;
+        engine.resetUnit(s.unit, true);
+        applyCharacter(s);
+        s.characterDirty = true;
+    }
+
+    /** Vanilla damage (mobs, falling, lava...) expressed as a fraction of the victim's maximum health. */
+    public void vanillaDamage(UnitState target, double fraction, UnitState attacker) {
+        if (target == null || target.isDead() || fraction <= 0) return;
+        double amount = fraction * target.maxHealth() * (attacker != null && attacker.kind == UnitKind.VANILLA ? config.vanillaDamageScale : 1.0);
+        engine.environmentalDamage(target, amount, attacker);
+    }
+
     /** Called by the adapter when a player would die from vanilla damage. Returns true to cancel the death. */
     public boolean onVanillaLethal(UUID uuid) {
         PlayerSession s = sessions.get(uuid);
@@ -508,6 +525,12 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
         c.text = new S2C.Text(text.en(), text.ru());
         c.color = color;
         platform.send(s.uuid, c);
+    }
+
+    public void openScreen(PlayerSession s, String screen) {
+        S2C.OpenScreen o = new S2C.OpenScreen();
+        o.screen = screen;
+        platform.send(s.uuid, o);
     }
 
     public void msg(UUID uuid, L10n text, int color) {

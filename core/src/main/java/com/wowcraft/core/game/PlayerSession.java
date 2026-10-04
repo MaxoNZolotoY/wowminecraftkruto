@@ -34,6 +34,7 @@ public final class PlayerSession {
     public double lastPvpSync;
     /** Pending ready-check answer. */
     public double releaseAvailableAt;
+    public double lastPortalUse = -100;
     /** Damage meter used while not in a group. */
     public final Meter meter = new Meter();
 

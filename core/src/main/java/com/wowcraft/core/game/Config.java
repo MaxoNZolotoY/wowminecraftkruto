@@ -11,6 +11,8 @@ public final class Config {
     public boolean openWorldPvp = false;
     /** Vanilla mobs get WoW-style health so abilities feel right against them. */
     public double vanillaMobHealthScale = 1.0;
+    /** Damage taken from vanilla mobs relative to their vanilla hit (fraction of the player's health). */
+    public double vanillaDamageScale = 0.6;
     /** Experience multiplier. */
     public double xpRate = 1.0;
     /** Allow changing class at any time out of combat. */

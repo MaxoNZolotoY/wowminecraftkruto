@@ -764,17 +764,6 @@ public final class InstanceManager {
                     s.instanceId = null;
                 }
             }
-            // exit portal
-            if (run.pvpMatchId == null && run.state != InstanceRun.State.BUILDING) {
-                Vec3 exit = run.abs(run.layout.exit);
-                for (UUID m : new ArrayList<>(run.members)) {
-                    PlayerSession s = server.session(m);
-                    if (s != null && s.unit != null && run.id.equals(s.unit.instanceId) && !s.unit.inCombat()
-                            && s.unit.position().distance(exit) < 1.0 && now - run.createdAt > 15 && s.unit.body != null && s.unit.body.isMoving()) {
-                        exit(s, run);
-                    }
-                }
-            }
             // empty instances close after a while
             boolean anyInside = false;
             for (UUID m : run.members) {
