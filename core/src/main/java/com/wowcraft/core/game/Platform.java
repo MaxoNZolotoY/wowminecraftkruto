@@ -58,6 +58,14 @@ public interface Platform {
     void removeBody(UnitState unit);
 
     /** Shows equipment on an NPC body (bots carry their weapons and armor visibly). */
+    /**
+     * The unit of a world entity by id, creating one for a plain Minecraft mob the player aims at (so abilities work on
+     * zombies, skeletons, animals...). {@code near} is the unit looking for it (its world is searched).
+     */
+    default UnitState unitByEntityId(int entityId, UnitState near) {
+        return null;
+    }
+
     default void showGear(UnitState unit, Equipment equipment) {
     }
 

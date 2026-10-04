@@ -11,6 +11,7 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.mob.Monster;
 import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -32,7 +33,8 @@ public final class Controls {
     static final String CATEGORY = "category.wowcraft";
     public static KeyBinding COMBAT_MODE, TARGET, SLOT_10, SLOT_11, SLOT_12, CHARACTER, TALENTS, GROUP_FINDER, VAULT, METER, RELEASE, ACCEPT,
             POTION, TRINKET;
-    public static boolean combatMode;
+    /** On by default: number keys cast abilities; R switches back to vanilla hotbar selection. */
+    public static boolean combatMode = true;
     public static boolean showMeter = true;
     private static int heldSlot = -1;
     private static KeyBinding heldKey;
@@ -178,31 +180,28 @@ public final class Controls {
         return eh != null ? eh.getEntity() : null;
     }
 
-    /** Tab-targeting: cycles through hostile units in front of the player, nearest first. */
+    /** Tab-targeting: cycles through enemies in front of the player (WoW units and hostile Minecraft mobs), nearest first. */
     static void cycleTarget(MinecraftClient mc) {
-        List<S2C.Unit> candidates = new ArrayList<>();
+        List<Entity> candidates = new ArrayList<>();
         Vec3d look = mc.player.getRotationVec(1.0f);
-        for (S2C.Unit u : ClientState.units.values()) {
-            if (!u.hostile || u.dead) continue;
-            Entity e = mc.world.getEntityById(u.entityId);
-            if (e == null) continue;
+        for (Entity e : mc.world.getEntities()) {
+            if (!(e instanceof LivingEntity) || e == mc.player || !e.isAlive() || e.isSpectator()) continue;
+            S2C.Unit u = ClientState.units.get(e.getId());
+            boolean enemy = u != null ? u.hostile && !u.dead : e instanceof Monster;
+            if (!enemy) continue;
             Vec3d to = e.getPos().subtract(mc.player.getPos());
             if (to.lengthSquared() > 45 * 45) continue;
             if (to.normalize().dotProduct(look) < 0.2 && to.lengthSquared() > 25) continue;
-            candidates.add(u);
+            candidates.add(e);
         }
         if (candidates.isEmpty()) return;
-        candidates.sort((a, b) -> Double.compare(dist(mc, a), dist(mc, b)));
-        lastTargetIndex = (lastTargetIndex + 1) % candidates.size();
-        S2C.Unit current = ClientState.target();
-        if (current == null || !candidates.contains(current)) lastTargetIndex = 0;
+        candidates.sort((a, b) -> Double.compare(a.squaredDistanceTo(mc.player), b.squaredDistanceTo(mc.player)));
+        int current = ClientState.self != null ? ClientState.self.targetId : -1;
+        int index = -1;
+        for (int i = 0; i < candidates.size(); i++) if (candidates.get(i).getId() == current) index = i;
+        lastTargetIndex = index < 0 ? 0 : (index + 1) % candidates.size();
         C2S.Target t = new C2S.Target();
-        t.entityId = candidates.get(lastTargetIndex).entityId;
+        t.entityId = candidates.get(lastTargetIndex).getId();
         ClientNet.send(t);
-    }
-
-    private static double dist(MinecraftClient mc, S2C.Unit u) {
-        Entity e = mc.world.getEntityById(u.entityId);
-        return e == null ? 1e9 : e.squaredDistanceTo(mc.player);
     }
 }

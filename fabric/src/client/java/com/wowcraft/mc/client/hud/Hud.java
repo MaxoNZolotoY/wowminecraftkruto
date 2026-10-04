@@ -244,6 +244,16 @@ public final class Hud {
         int x0 = (sw - total) / 2, y0 = sh - 22 - size - 8;
         if (Controls.combatMode) ctx.fill(x0 - 3, y0 - 3, x0 + total + 3, y0 + size + 3, 0x80FFB000);
         ctx.fill(x0 - 2, y0 - 2, x0 + total + 2, y0 + size + 2, 0xA0000000);
+        // what the number keys do right now, and how to switch
+        String key = Controls.COMBAT_MODE.getBoundKeyLocalizedText().getString();
+        String l1 = Controls.combatMode ? ClientState.t("Number keys: abilities", "Цифры: способности") : ClientState.t("Number keys: hotbar", "Цифры: хотбар");
+        String l2 = "[" + key + "] " + (Controls.combatMode ? ClientState.t("switch to hotbar", "переключить на хотбар") : ClientState.t("switch to abilities", "переключить на способности"));
+        ctx.getMatrices().push();
+        ctx.getMatrices().translate(x0 - 5, y0 + 2, 0);
+        ctx.getMatrices().scale(0.7f, 0.7f, 1);
+        ctx.drawText(tr, l1, -tr.getWidth(l1), 0, Controls.combatMode ? 0xFFFFC040 : 0xFFFF6060, true);
+        ctx.drawText(tr, l2, -tr.getWidth(l2), 11, 0xFFB0B0B0, true);
+        ctx.getMatrices().pop();
         long now = System.currentTimeMillis();
         float since = (now - ClientState.selfAt) / 1000f;
         for (int i = 0; i < 12; i++) {

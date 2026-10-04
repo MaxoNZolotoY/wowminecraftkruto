@@ -42,7 +42,7 @@ final class Input {
         if (msg instanceof C2S.Cast c) cast(server, s, c);
         else if (msg instanceof C2S.Release) engine.releaseEmpower(u);
         else if (msg instanceof C2S.CancelCast) engine.cancelCast(u, false);
-        else if (msg instanceof C2S.Target t) engine.setTarget(u, t.entityId < 0 ? null : engine.unit(t.entityId));
+        else if (msg instanceof C2S.Target t) engine.setTarget(u, server.resolveTarget(u, t.entityId));
         else if (msg instanceof C2S.ChooseClass c) chooseClass(server, s, c);
         else if (msg instanceof C2S.Talent t) talent(server, s, t);
         else if (msg instanceof C2S.SetBar b) setBar(server, s, b);
@@ -78,7 +78,7 @@ final class Input {
             server.onError(u, CastResult.UNKNOWN, Registry.ability(id));
             return;
         }
-        UnitState target = c.targetId >= 0 ? server.engine.unit(c.targetId) : null;
+        UnitState target = server.resolveTarget(u, c.targetId);
         if (target != null && !server.engine.sameWorld(u, target)) target = null;
         Vec3 point = c.hasPoint ? new Vec3(c.x, c.y, c.z) : null;
         server.engine.cast(u, id, target, point);

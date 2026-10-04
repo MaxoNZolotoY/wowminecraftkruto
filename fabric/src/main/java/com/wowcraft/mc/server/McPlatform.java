@@ -415,6 +415,15 @@ public final class McPlatform implements Platform {
     }
 
     /** The combat unit of any living entity (players, WoW NPCs, vanilla mobs that joined combat). */
+    @Override
+    public UnitState unitByEntityId(int entityId, UnitState near) {
+        ServerWorld w = world(near.worldKey());
+        Entity e = w.getEntityById(entityId);
+        if (!(e instanceof LivingEntity le) || !le.isAlive()) return null;
+        if (near.position().distance(new Vec3(le.getX(), le.getY(), le.getZ())) > 80) return null;
+        return unitOf(le);
+    }
+
     public UnitState unitOf(LivingEntity e) {
         if (e instanceof WowNpcEntity n) return n.unit;
         if (e instanceof ServerPlayerEntity p) {

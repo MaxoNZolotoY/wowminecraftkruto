@@ -153,6 +153,14 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
         return sessions.values();
     }
 
+    /** A target picked by a client: a known unit, or a vanilla mob that becomes one now. */
+    public UnitState resolveTarget(UnitState from, int entityId) {
+        if (entityId < 0) return null;
+        UnitState t = engine.unit(entityId);
+        if (t == null && from != null) t = platform.unitByEntityId(entityId, from);
+        return t;
+    }
+
     public PlayerSession sessionByName(String name) {
         for (PlayerSession s : sessions.values()) if (s.name.equalsIgnoreCase(name)) return s;
         return null;

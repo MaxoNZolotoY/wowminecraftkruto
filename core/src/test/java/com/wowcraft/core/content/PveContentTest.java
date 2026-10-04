@@ -72,4 +72,34 @@ class PveContentTest {
         assertTrue(arenas >= 3, "arenas");
         assertTrue(bgs >= 2, "battlegrounds");
     }
+
+    /** The creative "gear" tab rolls these items on the client; any exception there would break the creative inventory. */
+    @Test
+    void creativeGearCatalogBuildsForEverySpec() {
+        List<String> problems = new ArrayList<>();
+        for (com.wowcraft.core.spec.Spec spec : com.wowcraft.core.spec.Spec.values()) {
+            var eq = com.wowcraft.core.game.Rewards.fullSet(spec, 150, new com.wowcraft.core.util.Rng(spec.ordinal()), "creative", true);
+            if (eq.all().size() < 14) problems.add(spec + ": only " + eq.all().size() + " slots in a full set");
+            for (var piece : com.wowcraft.core.item.TierSet.PIECES) {
+                var d = com.wowcraft.core.item.LootGenerator.tierPiece(spec, piece, 150, new com.wowcraft.core.util.Rng(1), "creative");
+                if (d.setId == null) problems.add(spec + ": tier " + piece + " has no set");
+            }
+        }
+        for (ItemTemplate t : ItemRegistry.templates()) {
+            com.wowcraft.core.spec.Spec user = null;
+            for (com.wowcraft.core.spec.Spec spec : com.wowcraft.core.spec.Spec.values()) {
+                if (com.wowcraft.core.item.LootGenerator.usableBy(t, spec)) {
+                    user = spec;
+                    break;
+                }
+            }
+            if (user == null) {
+                problems.add(t.id() + ": nobody can use it");
+                continue;
+            }
+            var d = com.wowcraft.core.item.LootGenerator.fromTemplate(t, user, 150, new com.wowcraft.core.util.Rng(t.id().hashCode()), "creative");
+            if (d.ilvl < 147) problems.add(t.id() + ": item level " + d.ilvl);
+        }
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+    }
 }

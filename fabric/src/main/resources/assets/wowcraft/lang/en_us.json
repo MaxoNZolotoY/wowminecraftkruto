@@ -1,5 +1,5 @@
 {
-  "itemGroup.wowcraft": "WoWCraft",
+  "itemGroup.wowcraft": "WoWCraft: Gear",
   "category.wowcraft": "WoWCraft",
   "key.wowcraft.combat_mode": "Combat mode (number keys cast)",
   "key.wowcraft.target": "Target nearest enemy",
@@ -62,5 +62,7 @@
   "item.wowcraft.hands": "Gloves",
   "item.wowcraft.waist": "Belt",
   "item.wowcraft.finger": "Ring",
-  "item.wowcraft.trinket": "Trinket"
+  "item.wowcraft.trinket": "Trinket",
+  "item.wowcraft.npc_spawn_egg": "WoW Creature Egg",
+  "itemGroup.wowcraft.creatures": "WoWCraft: Creatures"
 }

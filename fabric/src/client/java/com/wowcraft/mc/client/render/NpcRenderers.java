@@ -28,6 +28,16 @@ import java.util.Map;
  * for real models / animations see docs (GeckoLib hook via the synced model and animation ids).
  */
 public final class NpcRenderers {
+    /** Spawn egg base color for creatures without a tint, by placeholder model family. */
+    public static int placeholderColor(com.wowcraft.core.npc.BodyType body) {
+        return switch (body) {
+            case HUMANOID -> 0xFF4E7A3A;
+            case BEAST -> 0xFF5A4030;
+            case ELEMENTAL -> 0xFFE08020;
+            case TOTEM -> 0xFF808080;
+        };
+    }
+
     private NpcRenderers() {
     }
 

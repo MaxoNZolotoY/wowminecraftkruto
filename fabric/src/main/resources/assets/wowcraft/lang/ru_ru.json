@@ -1,5 +1,5 @@
 {
-  "itemGroup.wowcraft": "WoWCraft",
+  "itemGroup.wowcraft": "WoWCraft: снаряжение",
   "category.wowcraft": "WoWCraft",
   "key.wowcraft.combat_mode": "Боевой режим (цифры — способности)",
   "key.wowcraft.target": "Ближайший противник",
@@ -62,5 +62,7 @@
   "item.wowcraft.hands": "Перчатки",
   "item.wowcraft.waist": "Пояс",
   "item.wowcraft.finger": "Кольцо",
-  "item.wowcraft.trinket": "Аксессуар"
+  "item.wowcraft.trinket": "Аксессуар",
+  "item.wowcraft.npc_spawn_egg": "Яйцо существа WoW",
+  "itemGroup.wowcraft.creatures": "WoWCraft: существа"
 }

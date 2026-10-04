@@ -9,6 +9,8 @@ import com.wowcraft.mc.client.render.WorldFx;
 import com.wowcraft.mc.entity.WowEntities;
 import com.wowcraft.mc.item.WowDyeableArmorItem;
 import com.wowcraft.mc.item.WowItems;
+import com.wowcraft.mc.item.WowSpawnEggItem;
+import com.wowcraft.core.npc.NpcTemplate;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -34,6 +36,14 @@ public final class WowCraftClient implements ClientModInitializer {
         for (Item item : WowItems.ALL.values()) if (item instanceof WowDyeableArmorItem) dyeable.add(item);
         ColorProviderRegistry.ITEM.register((stack, tintIndex) -> tintIndex > 0 ? -1 : ((DyeableItem) stack.getItem()).getColor(stack),
                 dyeable.toArray(new Item[0]));
+
+        ColorProviderRegistry.ITEM.register((stack, tintIndex) -> {
+            NpcTemplate t = WowSpawnEggItem.template(stack);
+            if (t == null) return -1;
+            if (tintIndex > 0) return WowSpawnEggItem.rankColor(t);
+            int c = t.tint & 0xFFFFFF;
+            return c == 0xFFFFFF ? NpcRenderers.placeholderColor(t.body) : 0xFF000000 | c;
+        }, WowItems.NPC_EGG);
 
         WowItems.tooltipSpec = ClientState::spec;
         WowItems.language = ClientState::lang;

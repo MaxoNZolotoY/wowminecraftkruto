@@ -102,11 +102,44 @@ public final class ClientSmokeTest {
         }
         waitFor("fire mage", mc -> "fire".equals(ClientState.character.spec) && ClientState.self != null && ClientState.self.resolvedBar != null, 30);
         check(call(mc -> mc.player.getInventory().armor.stream().anyMatch(s -> !s.isEmpty())), "starter armor equipped");
+        check(call(mc -> Controls.combatMode), "number keys cast abilities by default (no R needed)");
         sleep(1500);
         screenshot("04_hud");
         perspective(Perspective.THIRD_PERSON_FRONT);
         screenshot("05_hud_third_person");
         perspective(Perspective.FIRST_PERSON);
+
+        // ---- abilities on a plain Minecraft mob in the open world (no WoW unit until it is targeted)
+        final int[] huskId = {-1};
+        server(sp -> {
+            net.minecraft.entity.mob.HuskEntity h = net.minecraft.entity.EntityType.HUSK.create(sp.getServerWorld());
+            Vec3d at = sp.getPos().add(Vec3d.fromPolar(0, sp.getYaw()).multiply(7));
+            h.refreshPositionAndAngles(at.x, sp.getY(), at.z, sp.getYaw() + 180, 0);
+            h.setAiDisabled(true);
+            sp.getServerWorld().spawnEntity(h);
+            huskId[0] = h.getId();
+        });
+        waitFor("husk on the client", mc -> mc.world.getEntityById(huskId[0]) != null, 10);
+        int textBefore = ClientState.received.getOrDefault("CombatTextBatch", 0);
+        for (int i = 0; i < 16; i++) {
+            final int n = i;
+            run(mc -> {
+                aim(mc, huskId[0]);
+                S2C.Self self = ClientState.self;
+                int slot = self != null && self.suggested >= 0 ? self.suggested : n % 3;
+                KeyBinding.onKeyPressed(KeyBindingHelper.getBoundKeyOf(mc.options.hotbarKeys[Math.min(8, slot)]));
+            });
+            sleep(500);
+        }
+        screenshot("05b_vanilla_mob_combat");
+        int huskTexts = ClientState.received.getOrDefault("CombatTextBatch", 0) - textBefore;
+        log("vanilla mob: combat text batches " + huskTexts + ", unit " + call(mc -> ClientState.units.containsKey(huskId[0])));
+        check(huskTexts > 0, "abilities hit a plain Minecraft mob");
+        server(sp -> {
+            net.minecraft.entity.Entity h = sp.getServerWorld().getEntityById(huskId[0]);
+            if (h != null) h.discard();
+        });
+        waitFor("out of combat after the husk", mc -> ClientState.self != null && !ClientState.self.inCombat, 30);
 
         // ---- screens
         openScreen("character", "06_character");
@@ -181,6 +214,55 @@ public final class ClientSmokeTest {
         waitFor("player sent home from the instance world after a reload", mc -> mc.world != null && !inInstanceWorld(mc), 20);
         sleep(2000);
         screenshot("19_reloaded");
+
+        // ---- creative tabs: real WoW gear and creature eggs
+        int[] tabs = call(mc -> {
+            net.minecraft.item.ItemGroups.updateDisplayContext(mc.player.networkHandler.getEnabledFeatures(), true, mc.world.getRegistryManager());
+            var gear = net.minecraft.registry.Registries.ITEM_GROUP.get(new net.minecraft.util.Identifier("wowcraft", "items"));
+            var creatures = net.minecraft.registry.Registries.ITEM_GROUP.get(new net.minecraft.util.Identifier("wowcraft", "creatures"));
+            int withStats = 0;
+            for (var st : gear.getDisplayStacks()) if (com.wowcraft.mc.item.WowItems.read(st) != null) withStats++;
+            return new int[]{gear.getDisplayStacks().size(), withStats, creatures.getDisplayStacks().size()};
+        });
+        log("creative tabs: gear " + tabs[0] + " (" + tabs[1] + " with WoW stats), creatures " + tabs[2]);
+        check(tabs[0] >= 100 && tabs[1] == tabs[0], "gear tab lists real WoW items");
+        check(tabs[2] >= 50, "creatures tab lists spawn eggs");
+
+        // ---- spawn eggs: a trash mob, an elite and a boss, out of aggro range
+        java.util.List<String> eggIds = new java.util.ArrayList<>();
+        for (com.wowcraft.core.npc.NpcRank r : new com.wowcraft.core.npc.NpcRank[]{com.wowcraft.core.npc.NpcRank.NORMAL,
+                com.wowcraft.core.npc.NpcRank.ELITE, com.wowcraft.core.npc.NpcRank.BOSS}) {
+            for (com.wowcraft.core.npc.NpcTemplate t : com.wowcraft.core.npc.NpcRegistry.all()) {
+                if (t.rank == r && !t.friendly && com.wowcraft.mc.item.WowSpawnEggItem.spawnable(t)) {
+                    eggIds.add(t.id);
+                    break;
+                }
+            }
+        }
+        server(sp -> {
+            var w = sp.getServerWorld();
+            Vec3d look = Vec3d.fromPolar(0, sp.getYaw());
+            Vec3d side = look.rotateY((float) Math.toRadians(90));
+            for (int i = 0; i < eggIds.size(); i++) {
+                Vec3d p = sp.getPos().add(look.multiply(16)).add(side.multiply((i - 1) * 5));
+                net.minecraft.util.math.BlockPos top = w.getTopPosition(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+                        net.minecraft.util.math.BlockPos.ofFloored(p)).down();
+                net.minecraft.item.ItemStack egg = com.wowcraft.mc.item.WowSpawnEggItem.of(com.wowcraft.core.npc.NpcRegistry.get(eggIds.get(i)));
+                net.minecraft.item.ItemStack old = sp.getStackInHand(net.minecraft.util.Hand.OFF_HAND);
+                sp.setStackInHand(net.minecraft.util.Hand.OFF_HAND, egg);
+                egg.useOnBlock(new net.minecraft.item.ItemUsageContext(sp, net.minecraft.util.Hand.OFF_HAND,
+                        new net.minecraft.util.hit.BlockHitResult(Vec3d.ofCenter(top), net.minecraft.util.math.Direction.UP, top, false)));
+                sp.setStackInHand(net.minecraft.util.Hand.OFF_HAND, old);
+            }
+        });
+        waitFor("summoned creatures", mc -> {
+            int found = 0;
+            for (Entity e : mc.world.getEntities()) if (e instanceof WowNpcEntity n && eggIds.contains(n.templateId())) found++;
+            return found >= eggIds.size();
+        }, 20);
+        log("summoned with eggs: " + eggIds);
+        sleep(1500);
+        screenshot("20_spawn_eggs");
         check(experimentalPrompts == 0, "no experimental-settings prompts (seen " + experimentalPrompts + ")");
     }
 
@@ -215,10 +297,7 @@ public final class ClientSmokeTest {
             sp.teleport(sp.getServerWorld(), at.x, e.getY(), at.z, sp.getYaw(), 0);
         });
         sleep(1500);
-        run(mc -> {
-            aim(mc, enemy);
-            if (!Controls.combatMode) KeyBinding.onKeyPressed(KeyBindingHelper.getBoundKeyOf(Controls.COMBAT_MODE));
-        });
+        run(mc -> aim(mc, enemy));
         sleep(300);
         run(mc -> KeyBinding.onKeyPressed(KeyBindingHelper.getBoundKeyOf(Controls.TARGET)));
         sleep(500);

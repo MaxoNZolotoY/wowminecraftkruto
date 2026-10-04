@@ -1,5 +1,7 @@
 package com.wowcraft.mc.item;
 
+import com.wowcraft.core.game.Rewards;
+import com.wowcraft.core.item.Equipment;
 import com.wowcraft.core.item.EquipSlot;
 import com.wowcraft.core.item.EquipType;
 import com.wowcraft.core.item.ItemData;
@@ -7,15 +9,21 @@ import com.wowcraft.core.item.ItemEffect;
 import com.wowcraft.core.item.ItemQuality;
 import com.wowcraft.core.item.ItemRegistry;
 import com.wowcraft.core.item.ItemStats;
+import com.wowcraft.core.item.ItemTemplate;
+import com.wowcraft.core.item.LootGenerator;
 import com.wowcraft.core.item.TierSet;
 import com.wowcraft.core.item.UpgradeTrack;
 import com.wowcraft.core.item.WeaponType;
 import com.wowcraft.core.net.Protocol;
+import com.wowcraft.core.npc.NpcRegistry;
+import com.wowcraft.core.npc.NpcTemplate;
 import com.wowcraft.core.spec.ArmorType;
 import com.wowcraft.core.spec.Spec;
+import com.wowcraft.core.spec.WowClass;
 import com.wowcraft.core.stat.Stat;
 import com.wowcraft.core.stat.StatBlock;
 import com.wowcraft.core.util.L10n;
+import com.wowcraft.core.util.Rng;
 import com.wowcraft.mc.WowCraftMod;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.minecraft.item.ArmorItem;
@@ -48,6 +56,7 @@ public final class WowItems {
     private static final Map<EquipType, Item> ACCESSORIES = new EnumMap<>(EquipType.class);
     public static final Map<String, Item> ALL = new LinkedHashMap<>();
     public static Item TOKEN;
+    public static Item NPC_EGG;
 
     /** Client hook: the local player's spec for tooltips (adaptive primary stats). */
     public static Supplier<Spec> tooltipSpec = () -> null;
@@ -70,14 +79,63 @@ public final class WowItems {
             ACCESSORIES.put(t, reg(t.name().toLowerCase(), new WowAccessoryItem(new Item.Settings().maxCount(1))));
         }
         TOKEN = reg("keystone", new Item(new Item.Settings().maxCount(1)));
-        ItemGroup group = FabricItemGroup.builder()
+        NPC_EGG = reg("npc_spawn_egg", new WowSpawnEggItem(new Item.Settings()));
+        ItemGroup gear = FabricItemGroup.builder()
                 .icon(() -> new ItemStack(WEAPONS.get(WeaponType.SWORD_1H)))
                 .displayName(Text.translatable("itemGroup.wowcraft"))
+                .entries((ctx, entries) -> creativeGear(entries))
+                .build();
+        Registry.register(Registries.ITEM_GROUP, new Identifier(WowCraftMod.ID, "items"), gear);
+        ItemGroup creatures = FabricItemGroup.builder()
+                .icon(() -> new ItemStack(NPC_EGG))
+                .displayName(Text.translatable("itemGroup.wowcraft.creatures"))
                 .entries((ctx, entries) -> {
-                    for (Item item : ALL.values()) entries.add(item);
+                    for (NpcTemplate t : NpcRegistry.all()) if (WowSpawnEggItem.spawnable(t)) entries.add(WowSpawnEggItem.of(t));
                 })
                 .build();
-        Registry.register(Registries.ITEM_GROUP, new Identifier(WowCraftMod.ID, "items"), group);
+        Registry.register(Registries.ITEM_GROUP, new Identifier(WowCraftMod.ID, "creatures"), creatures);
+    }
+
+    /**
+     * Creative tab with real WoW items: a full mythic-track set for the player's spec, every class's tier set and all named
+     * dungeon / raid loot. Stats are rolled with fixed seeds so the tab is stable.
+     */
+    static void creativeGear(ItemGroup.Entries entries) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        try {
+            Spec mine = tooltipSpec.get();
+            if (mine != null) {
+                Equipment eq = Rewards.fullSet(mine, 150, new Rng(mine.ordinal() * 7919L + 1), "creative", true);
+                for (ItemData d : eq.all().values()) addGear(entries, seen, d);
+            }
+            for (WowClass c : WowClass.values()) {
+                Spec looter = mine != null && mine.wowClass == c ? mine : Spec.of(c).get(0);
+                for (EquipType piece : TierSet.PIECES) {
+                    addGear(entries, seen, LootGenerator.tierPiece(looter, piece, 150, new Rng(c.ordinal() * 131L + piece.ordinal()), "creative"));
+                }
+            }
+            for (ItemTemplate t : ItemRegistry.templates()) {
+                Spec looter = mine != null && LootGenerator.usableBy(t, mine) ? mine : null;
+                if (looter == null) {
+                    for (Spec sp : Spec.values()) {
+                        if (LootGenerator.usableBy(t, sp)) {
+                            looter = sp;
+                            break;
+                        }
+                    }
+                }
+                if (looter == null) continue;
+                addGear(entries, seen, LootGenerator.fromTemplate(t, looter, 150, new Rng(t.id().hashCode()), "creative"));
+            }
+        } catch (RuntimeException e) {
+            WowCraftMod.LOG.error("Failed to build the WoWCraft creative tab", e);
+        }
+    }
+
+    private static void addGear(ItemGroup.Entries entries, java.util.Set<String> seen, ItemData d) {
+        if (d == null) return;
+        ItemStack stack = toStack(d);
+        if (seen.add(stack.getNbt() != null ? stack.getNbt().toString() : d.id)) entries.add(stack);
     }
 
     private static Item armor(WowArmorMaterial mat, ArmorItem.Type type) {
