@@ -347,7 +347,7 @@ public final class UnitState {
         double mastery = Ratings.masteryPoints(statValue(Stat.MASTERY, m));
         d.masteryPoints = mastery;
         d.masteryPct = spec != null ? mastery * spec.masteryCoef : 0;
-        if (isPlayerLike() || kind == UnitKind.PET) {
+        if (isPlayerLike() || kind == UnitKind.PET && npcAttackPower <= 0 && npcSpellPower <= 0) {
             double weaponAp = mainHand != null ? mainHand.dps() * 6 : 0;
             d.attackPower = Math.max(d.strength, d.agility) + (primary == Stat.INTELLECT ? 0 : weaponAp);
             if (primary == Stat.INTELLECT) d.attackPower = d.intellect * 0.5;

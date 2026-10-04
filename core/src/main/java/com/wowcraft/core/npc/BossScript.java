@@ -55,6 +55,10 @@ public abstract class BossScript {
     public void onAddDeath(UnitState add) {
     }
 
+    public Encounter encounter() {
+        return e;
+    }
+
     // ------------------------------------------------------------------ targets
 
     protected UnitState boss() {
@@ -212,6 +216,50 @@ public abstract class BossScript {
             if (u != null) out.add(u);
         }
         return out;
+    }
+
+    /** A persistent damaging zone on the ground (removed when the encounter ends). */
+    protected void poolAt(Vec3 center, double radius, double duration, int color, Effect tick) {
+        EffectContext ctx = new EffectContext(e.engine, boss(), null, center, null, null);
+        e.engine.addArea(ctx, com.wowcraft.core.combat.GroundArea.Def.enemies("boss_pool", radius, duration, 1.0, tick).color(color));
+    }
+
+    /** Applies an aura from the boss to a unit. */
+    protected void applyAura(UnitState target, String auraId) {
+        if (target == null || target.isDead()) return;
+        e.engine.applyAura(new EffectContext(e.engine, boss(), target, null, null, null), target, auraId, 1, -1);
+    }
+
+    protected void buffBoss(String auraId) {
+        applyAura(boss(), auraId);
+    }
+
+    /** Damage absorb shield on the boss worth a fraction of its maximum health. */
+    protected void shieldBoss(String auraId, double fractionOfMaxHealth) {
+        EffectContext ctx = new EffectContext(e.engine, boss(), boss(), null, null, null);
+        e.engine.applyAbsorb(ctx, boss(), auraId, boss().maxHealth() * fractionOfMaxHealth);
+    }
+
+    /** Applies an effect to one unit with the boss as the source. */
+    protected void hitUnit(UnitState target, Effect effect) {
+        if (target == null || target.isDead()) return;
+        effect.apply(new EffectContext(e.engine, boss(), target, target.position(), null, null));
+    }
+
+    protected boolean addsAlive() {
+        for (UnitState a : e.adds) if (a.isAlive()) return true;
+        return false;
+    }
+
+    /** The other bosses of a council fight. */
+    protected List<UnitState> otherBosses() {
+        List<UnitState> out = new ArrayList<>(e.bosses);
+        out.remove(boss());
+        return out;
+    }
+
+    protected Vec3 roomCenter() {
+        return boss().brain instanceof NpcBrain nb && nb.home != null ? nb.home : bossPos();
     }
 
     protected void warn(String en, String ru) {

@@ -87,6 +87,7 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
         this.engine.setWorld(this);
         this.engine.addListener(this);
         this.engine.setCastFilter(this::castFilter);
+        this.engine.setHostility(this::hostile);
         this.npcs = new NpcManager(engine, platform, this);
         this.groups = new GroupManager(this);
         this.instances = new InstanceManager(this);
@@ -231,7 +232,7 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
         Spec spec = p.spec();
         UnitState u = s.unit;
         if (u == null) return;
-        Equipment eq = platform.readEquipment(s.uuid);
+        Equipment eq = equipment(s);
         if (spec == null) {
             u.wowClass = null;
             u.spec = null;
@@ -272,6 +273,81 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
     private static boolean isClassPet(String id) {
         return id != null && (id.equals("hunter_pet") || id.equals("ghoul") || id.equals("imp") || id.equals("felhunter") || id.equals("felguard")
                 || id.equals("voidwalker"));
+    }
+
+    /** Vanilla equipment slots (from the Minecraft inventory) plus the extra WoW slots stored in the profile. */
+    public Equipment equipment(PlayerSession s) {
+        Equipment eq = platform.readEquipment(s.uuid);
+        Equipment out = eq != null ? eq.copy() : new Equipment();
+        for (var en : s.profile.extraSlots.entrySet()) {
+            com.wowcraft.core.item.EquipSlot slot = com.wowcraft.core.item.EquipSlot.byName(en.getKey());
+            if (slot != null && !slot.isVanillaSlot() && en.getValue() != null) out.set(slot, en.getValue());
+        }
+        return out;
+    }
+
+    /**
+     * Equips a WoW item into an extra slot (neck, shoulders, back, wrist, hands, waist, rings, trinkets).
+     * The previously worn item goes back to the inventory. Returns false if the item does not use an extra slot.
+     */
+    public boolean equipExtra(UUID uuid, com.wowcraft.core.item.ItemData item) {
+        PlayerSession s = sessions.get(uuid);
+        if (s == null || item == null || item.equipType() == null) return false;
+        if (s.unit != null && s.unit.inCombat()) {
+            msg(s, L10n.of("You can't change equipment in combat.", "Нельзя менять снаряжение в бою."), 0xFFFF4040);
+            return false;
+        }
+        if (item.requiredLevel > s.profile.level) {
+            msg(s, L10n.of("Requires level " + item.requiredLevel + ".", "Требуется уровень " + item.requiredLevel + "."), 0xFFFF4040);
+            return false;
+        }
+        java.util.List<com.wowcraft.core.item.EquipSlot> slots = item.equipType().slots;
+        com.wowcraft.core.item.EquipSlot target = null;
+        for (com.wowcraft.core.item.EquipSlot sl : slots) {
+            if (sl.isVanillaSlot()) return false;
+            if (!s.profile.extraSlots.containsKey(sl.name())) {
+                target = sl;
+                break;
+            }
+        }
+        if (target == null) target = slots.get(0);
+        if (target.isTrinket() || target == com.wowcraft.core.item.EquipSlot.FINGER_1 || target == com.wowcraft.core.item.EquipSlot.FINGER_2) {
+            // unique-equipped: the same item can't be worn twice
+            for (com.wowcraft.core.item.EquipSlot sl : slots) {
+                com.wowcraft.core.item.ItemData other = s.profile.extraSlots.get(sl.name());
+                if (other != null && sl != target && other.effectId != null && other.effectId.equals(item.effectId)) {
+                    msg(s, L10n.of("Unique-equipped.", "Можно надеть только один такой предмет."), 0xFFFF4040);
+                    return false;
+                }
+            }
+        }
+        com.wowcraft.core.item.ItemData old = s.profile.extraSlots.put(target.name(), item);
+        if (old != null) platform.giveItem(uuid, old);
+        applyCharacter(s);
+        return true;
+    }
+
+    public Encounter encounterFor(UnitState u) {
+        InstanceRun run = instances.runOf(u);
+        if (run != null) return run.activeEncounter();
+        for (Encounter e : worldEncounters) {
+            if (e.active && engine.sameWorld(u, e.boss()) && u.position().distance(e.boss().position()) < 80) return e;
+        }
+        return null;
+    }
+
+    Meter soloMeter(PlayerSession s) {
+        return s.meter;
+    }
+
+    /** Friend / foe: teams, plus optional open-world PvP between players of different groups. */
+    private boolean hostile(UnitState a, UnitState b) {
+        if (com.wowcraft.core.combat.Hostility.TEAMS.hostile(a, b)) return true;
+        if (!config.openWorldPvp || a == b) return false;
+        UnitState ma = a.master(), mb = b.master();
+        if (ma == mb || !ma.isPlayer() || !mb.isPlayer()) return false;
+        if (ma.instanceId != null || mb.instanceId != null) return false;
+        return ma.groupId == null || !ma.groupId.equals(mb.groupId);
     }
 
     static long equipmentHash(Equipment eq) {
@@ -343,13 +419,14 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
             if (s.unit == null) continue;
             if (now - s.lastEquipmentCheck > 1.0) {
                 s.lastEquipmentCheck = now;
-                Equipment eq = platform.readEquipment(s.uuid);
+                Equipment eq = equipment(s);
                 long h = equipmentHash(eq);
                 if (h != s.equipmentHash) {
                     applyCharacter(s);
                 }
                 if (s.unit.spec != null && !s.unit.isDead() && !s.unit.hasLivingPet() && now - s.unit.lastCombatAtPublic() > 3) ensurePet(s);
             }
+            if (groups.groupOf(s.uuid) == null) s.meter.tick(now, s.unit.inCombat());
             Sync.syncPlayer(this, s, now);
         }
         flushCombatText();
@@ -496,10 +573,7 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
     @Override
     public void onDamage(HitResult hit) {
         queueCombatText(hit);
-        Group g = groups.groupOfUnit(hit.source != null ? hit.source.master() : null);
-        if (g != null) g.meter.onHit(hit, engine.now());
-        Group tg = groups.groupOfUnit(hit.target != null ? hit.target.master() : null);
-        if (tg != null && tg != g) tg.meter.onHit(hit, engine.now());
+        meterHit(hit);
         instances.onDamage(hit);
         pvp.onDamage(hit);
     }
@@ -507,8 +581,18 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
     @Override
     public void onHeal(HitResult hit) {
         queueCombatText(hit);
-        Group g = groups.groupOfUnit(hit.source != null ? hit.source.master() : null);
+        meterHit(hit);
+    }
+
+    private void meterHit(HitResult hit) {
+        UnitState src = hit.source != null ? hit.source.master() : null;
+        UnitState tgt = hit.target != null ? hit.target.master() : null;
+        Group g = groups.groupOfUnit(src);
         if (g != null) g.meter.onHit(hit, engine.now());
+        else if (src != null && src.isPlayer() && sessions.get(src.uuid) != null) sessions.get(src.uuid).meter.onHit(hit, engine.now());
+        Group tg = groups.groupOfUnit(tgt);
+        if (tg != null && tg != g) tg.meter.onHit(hit, engine.now());
+        else if (tg == null && tgt != null && tgt != src && tgt.isPlayer() && sessions.get(tgt.uuid) != null) sessions.get(tgt.uuid).meter.onHit(hit, engine.now());
     }
 
     private void queueCombatText(HitResult hit) {
@@ -666,7 +750,14 @@ public final class GameServer implements CombatListener, EncounterHost, NpcManag
         spec.owner = owner;
         spec.instanceId = owner != null ? owner.instanceId : null;
         InstanceRun run = owner != null ? instances.runOf(owner) : null;
-        if (owner == null && run != null) return instances.spawnNpc(run, templateId, pos, yaw, null);
+        if (owner != null && owner.isNpcLike()) {
+            // an NPC calling reinforcements: an independent enemy, not a pet
+            if (run != null) return instances.spawnNpc(run, templateId, pos, yaw, owner.packId);
+            spec.owner = null;
+            spec.instanceId = null;
+            spec.team = owner.team;
+            return npcs.spawn(templateId, spec);
+        }
         UnitState u = npcs.spawn(templateId, spec);
         if (u != null && run != null) run.npcs.add(u);
         return u;

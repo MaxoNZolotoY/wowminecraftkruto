@@ -28,6 +28,8 @@ public final class BotBrain {
     private double nextMedallionCheck;
     private UnitState focus;
     public boolean passive;
+    /** Optional trace output (tests / debugging). */
+    public static java.util.function.Consumer<String> trace;
 
     public BotBrain(UnitState unit) {
         this.unit = unit;
@@ -42,7 +44,7 @@ public final class BotBrain {
             return;
         }
         if (now < nextThink) return;
-        nextThink = now + 0.1 + engine.rng().nextDouble() * 0.05;
+        nextThink = now + Math.max(0.1, reaction * 0.4) + engine.rng().nextDouble() * 0.05;
 
         // PvP trinket out of long crowd control
         if (ctx.pvp(unit) && now >= nextMedallionCheck) {
@@ -72,13 +74,17 @@ public final class BotBrain {
         UnitState target = chooseTarget(ctx, allies, enemies);
         if (target != null) engine.setTarget(unit, target);
         boolean fighting = target != null && !passive;
+        if (trace != null) trace.accept(unit.name + " target=" + (target != null ? target.name : "-") + " enemies=" + enemies.size()
+                + " allies=" + allies.size() + " fighting=" + fighting);
 
         // 3) abilities
         if (!unit.isCasting() && fighting || !unit.isCasting() && unit.role() == Role.HEALER && anyInjured(allies)) {
             RotationRunner.Situation sit = new RotationRunner.Situation(target, enemies, allies);
             RotationRunner.Decision d = RotationRunner.decide(engine, unit, rotation, sit);
-            if (d != null && now >= nextThink - 0.1 + reaction * 0) {
+            if (trace != null && d == null) trace.accept(unit.name + " no decision");
+            if (d != null) {
                 CastResult r = engine.cast(unit, d.abilityId(), d.target(), d.point());
+                if (trace != null) trace.accept(unit.name + " cast " + d.abilityId() + " -> " + r);
                 if (r.ok() && d.target() != null && d.target() != unit && unit.body != null) unit.body.lookAt(d.target().position());
             }
         }

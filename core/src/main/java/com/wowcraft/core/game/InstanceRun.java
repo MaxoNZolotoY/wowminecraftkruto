@@ -46,6 +46,7 @@ public final class InstanceRun {
     public UUID keyOwner;
     /** PvP match using this map, if any. */
     public String pvpMatchId;
+    public double lastStatus;
 
     public InstanceRun(String id, DungeonDef def, Difficulty difficulty, Layout layout, Vec3 origin, String worldKey, int slot) {
         this.id = id;

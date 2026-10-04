@@ -25,6 +25,17 @@ public final class Content {
         }
         ItemContent.register();
         PveContent.register();
+        PetContent.register();
+        com.wowcraft.core.content.pve.GrimholdDepths.register();
+        com.wowcraft.core.content.pve.TidewrackSanctum.register();
+        com.wowcraft.core.content.pve.EmberforgeCitadel.register();
+        com.wowcraft.core.content.pve.FrozenOssuary.register();
+        com.wowcraft.core.content.pve.GroveOfWithering.register();
+        com.wowcraft.core.content.pve.SpireOfTheVoidChoir.register();
+        com.wowcraft.core.content.pve.SandscourTombs.register();
+        com.wowcraft.core.content.pve.IronhookHarbor.register();
+        com.wowcraft.core.content.pve.ShatteredStarRaid.register();
+        com.wowcraft.core.content.pve.PvpContent.register();
     }
 
     private static ClassContent[] classes() {

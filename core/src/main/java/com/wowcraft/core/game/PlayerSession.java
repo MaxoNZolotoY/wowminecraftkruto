@@ -26,8 +26,16 @@ public final class PlayerSession {
     public long equipmentHash;
     public String pendingInviteFrom;
     public double pendingInviteAt;
-    /** Raid target marks set by this player (entity id -> icon index). */
     public int readyState;
+    public double lastSuggest;
+    public int suggested = -1;
+    public double lastMeterSync;
+    public double lastInstanceSync;
+    public double lastPvpSync;
+    /** Pending ready-check answer. */
+    public double releaseAvailableAt;
+    /** Damage meter used while not in a group. */
+    public final Meter meter = new Meter();
 
     public PlayerSession(UUID uuid, String name, PlayerProfile profile) {
         this.uuid = uuid;

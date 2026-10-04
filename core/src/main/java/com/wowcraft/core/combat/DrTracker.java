@@ -39,6 +39,10 @@ public final class DrTracker {
         if (s != null) s.resetAt = Math.min(s.resetAt, now + RESET_TIME);
     }
 
+    public void reset() {
+        states.clear();
+    }
+
     public double peek(String category, double now) {
         if (category == null) return 1.0;
         State s = states.get(category);

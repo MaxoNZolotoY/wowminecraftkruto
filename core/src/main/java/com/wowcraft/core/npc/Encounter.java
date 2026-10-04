@@ -196,6 +196,7 @@ public final class Encounter {
         this.victory = victory;
         for (Telegraph t : telegraphs) host.telegraph(this, t, false);
         telegraphs.clear();
+        for (UnitState b : bosses) engine.removeAreasOf(b);
         timers.clear();
         actions.clear();
         repeating.clear();

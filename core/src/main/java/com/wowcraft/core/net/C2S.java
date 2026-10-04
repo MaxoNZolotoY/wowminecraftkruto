@@ -49,8 +49,11 @@ public final class C2S {
     }
 
     public static final class LfgAction {
-        /** queue, leave, list_key, delist, apply, accept, decline, start_followers, refresh */
+        /** queue, leave, list_key, delist, apply, accept, decline, fill_bots, add_bot, refresh */
         public String action;
+        public String title;
+        public double minRating;
+        public boolean followers;
         public String dungeon;
         public String difficulty;
         public int level;
@@ -60,8 +63,10 @@ public final class C2S {
     }
 
     public static final class InstanceAction {
-        /** start_key, leave, release, reset */
+        /** enter, start_key, leave, release, reset */
         public String action;
+        public String dungeon;
+        public String difficulty;
     }
 
     public static final class PvpAction {
@@ -88,6 +93,17 @@ public final class C2S {
     public static final class UseItem {
         /** trinket_1, trinket_2, potion, healthstone */
         public String which;
+    }
+
+    /** Takes an item out of an extra equipment slot (neck, rings, trinkets, back...) back into the inventory. */
+    public static final class Unequip {
+        public String slot;
+    }
+
+    /** Spend currency / buy from a vendor-like NPC interaction. */
+    public static final class Interact {
+        public int entityId = -1;
+        public String option;
     }
 
     public static final class Hello {

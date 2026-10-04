@@ -34,7 +34,14 @@ public interface Platform {
     /** Ghost mode for players who died inside an instance (spectator-like, waiting for a resurrection). */
     void setGhost(UUID player, boolean ghost);
 
+    /** Items in the vanilla equipment slots (head, chest, legs, feet, main hand, off hand) that carry WoW item data. */
     Equipment readEquipment(UUID player);
+
+    /** Puts an item into a vanilla equipment slot, moving the previous item into the inventory. */
+    void equip(UUID player, com.wowcraft.core.item.EquipSlot slot, ItemData item);
+
+    /** Replaces the item data of the item currently in a vanilla equipment slot (upgrades, gems). */
+    void replaceEquipped(UUID player, com.wowcraft.core.item.EquipSlot slot, ItemData item);
 
     /** Puts an item into the player's inventory (drops it at their feet when full). */
     void giveItem(UUID player, ItemData item);
@@ -49,6 +56,9 @@ public interface Platform {
     UnitState createNpcBody(String worldKey, Vec3 pos, float yaw, NpcTemplate template, UnitKind kind, String displayName);
 
     void removeBody(UnitState unit);
+
+    /** Moves an NPC / bot entity to another world (or position) keeping its unit. */
+    void moveBody(UnitState unit, String worldKey, Vec3 pos);
 
     // ---------------------------------------------------------------- world
 
