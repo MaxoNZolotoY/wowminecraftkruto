@@ -85,6 +85,8 @@ final class Sync {
         c.mythicRating = MythicScore.totalRating(p);
         Equipment eq = server.equipment(s);
         c.itemLevel = eq != null ? Math.round(eq.averageItemLevel() * 10) / 10.0 : 0;
+        if (eq != null) for (var en : eq.all().entrySet()) c.equipment.put(en.getKey().name(), en.getValue());
+        c.ghost = s.ghost;
         c.honorLevel = p.honorLevel;
         if (u != null) {
             Object t1 = u.tags.get("trinket_1"), t2 = u.tags.get("trinket_2");

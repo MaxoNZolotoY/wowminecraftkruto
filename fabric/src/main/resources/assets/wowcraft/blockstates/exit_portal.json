@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "wowcraft:block/exit_portal"
+    }
+  }
+}

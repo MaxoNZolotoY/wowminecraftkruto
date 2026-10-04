@@ -46,6 +46,9 @@ public final class S2C {
         public String trinket1;
         public String trinket2;
         public Map<String, Integer> pvpRatings = new HashMap<>();
+        /** Worn items per equipment slot name. */
+        public Map<String, ItemData> equipment = new HashMap<>();
+        public boolean ghost;
     }
 
     public static final class AuraInfo {
