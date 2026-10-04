@@ -178,7 +178,7 @@ public final class ClientSmokeTest {
         enterWorld();
         waitFor("character after reload", mc -> ClientState.character.classChosen, 60);
         check("fire".equals(call(mc -> ClientState.character.spec)), "class and spec persisted across a reload");
-        check(!call(ClientSmokeTest::inInstanceWorld), "player is back in the normal world after a reload");
+        waitFor("player sent home from the instance world after a reload", mc -> mc.world != null && !inInstanceWorld(mc), 20);
         sleep(2000);
         screenshot("19_reloaded");
         check(experimentalPrompts == 0, "no experimental-settings prompts (seen " + experimentalPrompts + ")");

@@ -28,6 +28,7 @@ public final class Net {
             }
             if (msg == null) return;
             server.execute(() -> {
+                ServerHooks.ensureJoined(player);
                 if (WowCraftMod.game() != null) WowCraftMod.game().handle(player.getUuid(), msg);
             });
         });

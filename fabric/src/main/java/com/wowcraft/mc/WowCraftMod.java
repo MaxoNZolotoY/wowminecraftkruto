@@ -83,6 +83,7 @@ public final class WowCraftMod implements ModInitializer {
     private static void tick(MinecraftServer server) {
         if (game == null) return;
         try {
+            com.wowcraft.mc.server.ServerHooks.flushJoins(server);
             platform.tick();
         } catch (RuntimeException e) {
             LOG.error("WoWCraft tick failed", e);

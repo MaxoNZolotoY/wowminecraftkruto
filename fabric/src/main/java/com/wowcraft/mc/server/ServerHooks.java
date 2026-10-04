@@ -16,8 +16,14 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.ActionResult;
+
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.UUID;
 
 /** Minecraft events -> game server: joins, deaths, vanilla damage, melee clicks. */
 public final class ServerHooks {
@@ -33,12 +39,11 @@ public final class ServerHooks {
     }
 
     public static void register() {
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            if (game() == null) return;
-            ServerPlayerEntity p = handler.player;
-            join(p);
-        });
+        // JOIN fires in the middle of PlayerManager.onPlayerConnect, before the player is in the player list and the world:
+        // anything done then (teleports, inventory, messages) is lost. The game-side join runs on the next tick instead.
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> pendingJoins.add(handler.player.getUuid()));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            pendingJoins.remove(handler.player.getUuid());
             if (game() == null) return;
             ServerPlayerEntity p = handler.player;
             PlayerSession s = game().session(p.getUuid());
@@ -92,6 +97,23 @@ public final class ServerHooks {
             if (game() == null) return;
             if (entity instanceof LivingEntity le && !(entity instanceof PlayerEntity) && !(entity instanceof WowNpcEntity)) platform().vanilla.remove(le);
         });
+    }
+
+    private static final Set<UUID> pendingJoins = new LinkedHashSet<>();
+
+    /** Start of every server tick: players who connected since the last tick join the game. */
+    public static void flushJoins(MinecraftServer server) {
+        if (pendingJoins.isEmpty() || game() == null) return;
+        for (UUID uuid : new ArrayList<>(pendingJoins)) {
+            pendingJoins.remove(uuid);
+            ServerPlayerEntity p = server.getPlayerManager().getPlayer(uuid);
+            if (p != null) join(p);
+        }
+    }
+
+    /** Joins a player right away if a packet from them arrives before their deferred join ran. */
+    public static void ensureJoined(ServerPlayerEntity p) {
+        if (pendingJoins.remove(p.getUuid()) && game() != null) join(p);
     }
 
     static void join(ServerPlayerEntity p) {

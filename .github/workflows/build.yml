@@ -22,7 +22,11 @@ jobs:
         run: ./gradlew :core:test --no-daemon --stacktrace
 
       - name: Build Fabric mod
-        run: ./gradlew :fabric:build --no-daemon --stacktrace
+        run: |
+          ./gradlew :fabric:build --no-daemon --stacktrace
+          jar=$(ls fabric/build/libs/wowcraft-*.jar | grep -v sources | head -1)
+          unzip -l "$jar" | grep -E "refmap|mixins.json"
+          unzip -p "$jar" wowcraft.mixins.json | grep -q '"refmap"'
 
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
