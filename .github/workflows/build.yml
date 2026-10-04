@@ -25,8 +25,10 @@ jobs:
         run: |
           ./gradlew :fabric:build --no-daemon --stacktrace
           jar=$(ls fabric/build/libs/wowcraft-*.jar | grep -v sources | head -1)
-          unzip -l "$jar" | grep -E "refmap|mixins.json"
-          unzip -p "$jar" wowcraft.mixins.json | grep -q '"refmap"'
+          # Loom remaps mixin targets inside the classes (no refmap): production must see intermediary names only
+          unzip -p "$jar" com/wowcraft/mc/mixin/DimensionOptionsRegistryHolderMixin.class > mixin.class
+          strings mixin.class | grep -E "method_|class_" | head -5
+          ! strings mixin.class | grep -qE "toConfig|getLifecycle|net/minecraft/registry/SimpleRegistry"
 
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
