@@ -495,7 +495,7 @@ public final class CombatEngine {
 
     /** Main entry point for "use ability" from players, bots and NPCs. */
     public CastResult cast(UnitState caster, String abilityId, UnitState target, Vec3 point) {
-        String resolved = caster.replacements.getOrDefault(abilityId, abilityId);
+        String resolved = resolveAbility(caster, abilityId);
         Ability a = Registry.ability(resolved);
         if (a == null) return fail(caster, CastResult.UNKNOWN, null);
         if (caster.isPlayerLike() && !caster.knownAbilities.contains(a.id) && !caster.knownAbilities.contains(abilityId)) {
@@ -535,9 +535,19 @@ public final class CombatEngine {
         return begin(caster, a, at);
     }
 
+    /** Applies talent replacements and temporary (aura) replacements such as Metamorphosis. */
+    public String resolveAbility(UnitState caster, String abilityId) {
+        String id = caster.replacements.getOrDefault(abilityId, abilityId);
+        for (String ref : caster.mods().refs(ModType.REPLACE_ABILITY)) {
+            int i = ref.indexOf('>');
+            if (i > 0 && ref.substring(0, i).equals(id)) return ref.substring(i + 1);
+        }
+        return id;
+    }
+
     /** Checks whether an ability could be cast right now (used by UI and bots). */
     public CastResult check(UnitState caster, String abilityId, UnitState target) {
-        String resolved = caster.replacements.getOrDefault(abilityId, abilityId);
+        String resolved = resolveAbility(caster, abilityId);
         Ability a = Registry.ability(resolved);
         if (a == null) return CastResult.UNKNOWN;
         if (caster.isDead()) return CastResult.DEAD;
@@ -695,11 +705,15 @@ public final class CombatEngine {
     }
 
     private CastResult begin(UnitState caster, Ability a, CastAttempt at) {
-        if (caster.auras.isStealthed() && a.breaksStealth && !a.isHelpful()) {
-            // stealth breaks on starting any offensive cast
-            breakStealth(caster);
+        if (a.requiredFormAura != null && !caster.auras().has(a.requiredFormAura)) {
+            applyAura(new EffectContext(this, caster, caster, null, null, null), caster, a.requiredFormAura, 1, -1);
         }
         double castTime = castTime(caster, a);
+        boolean hasCastBar = a.castType == CastType.CHANNEL || a.castType == CastType.EMPOWER || (a.castType == CastType.CAST && castTime > 0.05);
+        if (hasCastBar && caster.auras.isStealthed() && a.breaksStealth && !a.isHelpful()) {
+            // stealth breaks when starting an offensive cast; instants break it after their effects (so "from stealth" bonuses apply)
+            breakStealth(caster);
+        }
         if (a.targetType == TargetType.ENEMY && at.target != null) {
             caster.target = at.target;
             caster.markDirty(UnitState.DIRTY_TARGET);
@@ -1066,6 +1080,7 @@ public final class CombatEngine {
         for (AuraInstance a : new ArrayList<>(target.auras.all())) {
             if (remaining <= 0) break;
             if (a.removed || !a.def.absorb || a.absorbRemaining <= 0) continue;
+            if (a.def.absorbMagicOnly && !school.isMagic()) continue;
             double soak = Math.min(remaining, a.absorbRemaining);
             a.absorbRemaining -= soak;
             remaining -= soak;
@@ -1178,6 +1193,7 @@ public final class CombatEngine {
             }
         }
         target.health = Math.max(0, target.health - loss);
+        target.recordDamageTaken(now, loss);
         target.markDirty(UnitState.DIRTY_HEALTH);
         double fracBefore = old / Math.max(1, target.maxHealth);
         if (target.health <= 0) {
@@ -1655,6 +1671,10 @@ public final class CombatEngine {
                 if (a.def.tickEffect() == null) continue;
                 EffectContext ctx = new EffectContext(this, a.caster, null, a.center, a.ability, null);
                 ctx.periodic = true;
+                if (a.def.oncePerTick()) {
+                    a.def.tickEffect().apply(ctx);
+                    continue;
+                }
                 List<UnitState> targets = new ArrayList<>();
                 if (a.def.affectsEnemies()) targets.addAll(enemiesAround(a.caster, a.center, a.radius));
                 if (a.def.affectsAllies()) targets.addAll(alliesAround(a.caster, a.center, a.radius));

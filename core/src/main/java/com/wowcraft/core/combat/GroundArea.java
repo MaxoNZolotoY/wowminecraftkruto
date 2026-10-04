@@ -14,25 +14,30 @@ public final class GroundArea {
      */
     public record Def(String id, double radius, double duration, double tickInterval, boolean affectsEnemies,
                       boolean affectsAllies, boolean atCaster, boolean followsCaster, Effect tickEffect, String vfx,
-                      int color) {
+                      int color, boolean oncePerTick) {
         public static Def enemies(String id, double radius, double duration, double tick, Effect e) {
-            return new Def(id, radius, duration, tick, true, false, false, false, e, id, 0xFFFF4040);
+            return new Def(id, radius, duration, tick, true, false, false, false, e, id, 0xFFFF4040, false);
         }
 
         public static Def allies(String id, double radius, double duration, double tick, Effect e) {
-            return new Def(id, radius, duration, tick, false, true, false, false, e, id, 0xFF40FF40);
+            return new Def(id, radius, duration, tick, false, true, false, false, e, id, 0xFF40FF40, false);
         }
 
         public Def centeredOnCaster() {
-            return new Def(id, radius, duration, tickInterval, affectsEnemies, affectsAllies, true, followsCaster, tickEffect, vfx, color);
+            return new Def(id, radius, duration, tickInterval, affectsEnemies, affectsAllies, true, followsCaster, tickEffect, vfx, color, oncePerTick);
         }
 
         public Def following() {
-            return new Def(id, radius, duration, tickInterval, affectsEnemies, affectsAllies, true, true, tickEffect, vfx, color);
+            return new Def(id, radius, duration, tickInterval, affectsEnemies, affectsAllies, true, true, tickEffect, vfx, color, oncePerTick);
+        }
+
+        /** The tick effect runs once per tick (target = null, point = area center) instead of per unit. */
+        public static Def scripted(String id, double radius, double duration, double tick, Effect e) {
+            return new Def(id, radius, duration, tick, false, false, false, false, e, id, 0xFFFFFF40, true);
         }
 
         public Def color(int argb) {
-            return new Def(id, radius, duration, tickInterval, affectsEnemies, affectsAllies, atCaster, followsCaster, tickEffect, vfx, argb);
+            return new Def(id, radius, duration, tickInterval, affectsEnemies, affectsAllies, atCaster, followsCaster, tickEffect, vfx, argb, oncePerTick);
         }
     }
 

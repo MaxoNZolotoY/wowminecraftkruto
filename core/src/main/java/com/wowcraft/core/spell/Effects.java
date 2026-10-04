@@ -280,19 +280,37 @@ public final class Effects {
 
     /** Removes harmful (on allies) or beneficial (on enemies) auras of the given dispel types. */
     public static Effect dispel(int count, DispelType... types) {
-        Set<DispelType> set = new HashSet<>(List.of(types));
-        StringBuilder en = new StringBuilder(), ru = new StringBuilder();
-        for (DispelType t : types) {
-            if (en.length() > 0) {
-                en.append(", ");
-                ru.append(", ");
-            }
-            en.append(t.name.en());
-            ru.append(t.name.ru());
+        return new DispelEffect(count, types);
+    }
+
+    /** Dispel effect; its types are exposed so AI can decide who to dispel. */
+    public static final class DispelEffect implements Effect {
+        public final Set<DispelType> types;
+        public final int count;
+
+        DispelEffect(int count, DispelType... types) {
+            this.types = new HashSet<>(List.of(types));
+            this.count = count;
         }
-        return described(ctx -> {
-            if (ctx.target != null) ctx.engine.dispel(ctx.caster, ctx.target, set, count);
-        }, "Removes " + count + " effect(s): " + en, "Снимает эффекты (" + count + "): " + ru);
+
+        @Override
+        public void apply(EffectContext ctx) {
+            if (ctx.target != null) ctx.engine.dispel(ctx.caster, ctx.target, types, count);
+        }
+
+        @Override
+        public String describe(DescribeContext d) {
+            StringBuilder en = new StringBuilder(), ru = new StringBuilder();
+            for (DispelType t : types) {
+                if (en.length() > 0) {
+                    en.append(", ");
+                    ru.append(", ");
+                }
+                en.append(t.name.en());
+                ru.append(t.name.ru());
+            }
+            return d.t("Removes " + count + " effect(s): " + en, "Снимает эффекты (" + count + "): " + ru);
+        }
     }
 
     public static Effect taunt() {
@@ -594,6 +612,141 @@ public final class Effects {
 
     public static Effect hiddenCustom(Consumer<EffectContext> fn) {
         return fn::accept;
+    }
+
+
+    // ------------------------------------------------------------------ timing, pets, finishers
+
+    /** Runs the effects after a delay (sigils, totems, boss telegraphs). The target / point are captured now. */
+    public static Effect delayed(double seconds, Effect... effects) {
+        return new Effect() {
+            @Override
+            public void apply(EffectContext ctx) {
+                EffectContext c = ctx.copy();
+                if (c.point == null) c.point = ctx.targetPoint();
+                ctx.engine.schedule(seconds, () -> {
+                    if (c.caster.isDead() && c.caster.isNpcLike()) return;
+                    for (Effect e : effects) e.apply(c);
+                });
+            }
+
+            @Override
+            public String describe(DescribeContext d) {
+                String inner = describeAll(d, effects);
+                return inner.isEmpty() ? "" : d.t("After " + fmt(seconds) + " sec: ", "Через " + fmt(seconds) + " сек.: ") + lower(inner);
+            }
+        };
+    }
+
+    /** All the caster's living pets deal damage to the target (Kill Command, Felstorm...). */
+    public static Effect petDamage(School school, Scaling s) {
+        return new Effect() {
+            @Override
+            public void apply(EffectContext ctx) {
+                if (ctx.target == null) return;
+                for (UnitState pet : ctx.caster.livingPets()) {
+                    if (pet.kind == com.wowcraft.core.combat.UnitKind.TOTEM) continue;
+                    double base = Formulas.base(ctx.caster, ctx.target, s, ctx.comboSpent) * ctx.scale;
+                    EffectContext c = ctx.withCaster(pet, ctx.target);
+                    ctx.engine.dealDamage(c, ctx.target, school != null ? school : School.PHYSICAL, base);
+                    ctx.engine.vfx("pet_attack", pet, ctx.target, null);
+                    if (pet.body != null) ctx.engine.setTarget(pet, ctx.target);
+                }
+            }
+
+            @Override
+            public String describe(DescribeContext d) {
+                return d.t("Your pet deals ", "Ваш питомец наносит ") + amount(d, s) + d.t(" damage", " ед. урона");
+            }
+        };
+    }
+
+    /** Applies an aura whose duration depends on combo points spent (Rupture, Rip, Slice and Dice). */
+    public static Effect auraPerCombo(String auraId, double base, double perPoint, boolean onSelf) {
+        return new Effect() {
+            @Override
+            public void apply(EffectContext ctx) {
+                UnitState t = onSelf ? ctx.caster : (ctx.target != null ? ctx.target : ctx.caster);
+                double dur = base + perPoint * Math.max(1, ctx.comboSpent);
+                ctx.engine.applyAura(onSelf ? ctx.withTarget(ctx.caster) : ctx, t, auraId, 1, dur);
+            }
+
+            @Override
+            public String describe(DescribeContext d) {
+                return describeAura(d, auraId, onSelf) + d.t(" (" + fmt(perPoint) + " sec per combo point)", " (" + fmt(perPoint) + " сек. за прием серии)");
+            }
+        };
+    }
+
+    /** Spends up to {@code max} extra resource to multiply the following effect (Ferocious Bite). */
+    public static Effect spendExtra(ResourceType t, double max, double bonusAtMax, Effect e) {
+        return new Effect() {
+            @Override
+            public void apply(EffectContext ctx) {
+                double avail = Math.min(max, ctx.caster.resources().get(t));
+                ctx.engine.energize(ctx.caster, t, -avail);
+                EffectContext c = ctx.copy();
+                c.scale *= 1.0 + bonusAtMax * (avail / max);
+                e.apply(c);
+            }
+
+            @Override
+            public String describe(DescribeContext d) {
+                return e.describe(d) + d.t(". Consumes up to " + fmt(max) + " extra " + t.name.en() + " for up to +" + Math.round(bonusAtMax * 100) + "% damage",
+                        ". Расходует до " + fmt(max) + " доп. ед. ресурса, увеличивая урон до " + Math.round(bonusAtMax * 100) + "%");
+            }
+        };
+    }
+
+    /** Removes N stacks of an aura from the caster. */
+    public static Effect consumeStacks(String auraId, int n) {
+        return ctx -> ctx.engine.removeStacks(ctx.caster, auraId, n);
+    }
+
+    /** Applies an aura to all allies (party) around the caster. */
+    public static Effect groupAura(String auraId, double radius) {
+        return new Effect() {
+            @Override
+            public void apply(EffectContext ctx) {
+                for (UnitState u : ctx.engine.groupMembersAround(ctx.caster, radius)) {
+                    ctx.engine.applyAura(ctx.withTarget(u), u, auraId, 1, -1);
+                }
+            }
+
+            @Override
+            public String describe(DescribeContext d) {
+                return describeAura(d, auraId, false) + d.t(" to party members within " + fmt(radius) + " yd", " членам группы в радиусе " + fmt(radius) + " м");
+            }
+        };
+    }
+
+    /** Heals the caster for a percentage of maximum health. */
+    public static Effect healPct(double fraction) {
+        return selfHeal(Scaling.hp(fraction));
+    }
+
+    /** Drops the caster from all NPC threat tables (Feign Death, Vanish). */
+    public static Effect dropThreat() {
+        return described(ctx -> {
+            for (UnitState u : ctx.engine.units()) {
+                if (u.threat() != null) u.threat().remove(ctx.caster);
+            }
+        }, "Removes you from enemy threat lists", "Сбрасывает угрозу противников");
+    }
+
+
+    /** Proc helper: deals a fraction of the triggering damage to up to {@code count} other enemies near the target. */
+    public static Effect cleave(double fraction, double radius, int count) {
+        return described(ctx -> {
+            if (ctx.target == null || ctx.triggerAmount <= 0) return;
+            int n = 0;
+            for (UnitState u : ctx.engine.enemiesAround(ctx.caster, ctx.target.position(), radius)) {
+                if (u == ctx.target) continue;
+                if (n++ >= count) break;
+                ctx.engine.dealRawDamage(ctx.withTarget(u), u, School.PHYSICAL, ctx.triggerAmount * fraction);
+            }
+        }, "Your single-target attacks also hit " + count + " nearby enemies for " + Math.round(fraction * 100) + "% damage",
+                "Ваши атаки по одной цели также поражают " + count + " противников рядом (" + Math.round(fraction * 100) + "% урона)");
     }
 
     // ------------------------------------------------------------------ helpers

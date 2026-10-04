@@ -126,6 +126,8 @@ public final class UnitState {
     /** Arbitrary script data. */
     public final Map<String, Object> tags = new HashMap<>();
     int dirty = 0xFFFF;
+    /** Recent damage taken (time, amount) for Death Strike style effects. */
+    private final java.util.ArrayDeque<double[]> recentDamage = new java.util.ArrayDeque<>();
 
     public UnitState(int id, UUID uuid, String name, UnitKind kind) {
         this.id = id;
@@ -343,7 +345,7 @@ public final class UnitState {
             double weaponAp = mainHand != null ? mainHand.dps() * 6 : 0;
             d.attackPower = Math.max(d.strength, d.agility) + (primary == Stat.INTELLECT ? 0 : weaponAp);
             if (primary == Stat.INTELLECT) d.attackPower = d.intellect * 0.5;
-            d.spellPower = primary == Stat.INTELLECT ? d.intellect : primaryValue * 0.5;
+            d.spellPower = primary == Stat.INTELLECT ? d.intellect + weaponAp : primaryValue * 0.5;
             if (spec != null && spec.masteryKind == com.wowcraft.core.spec.MasteryKind.DEFENSIVE) {
                 d.attackPower *= 1.0 + d.masteryPct / 200.0;
             }
@@ -401,6 +403,18 @@ public final class UnitState {
         if (resources.consumeDirty()) d |= DIRTY_RESOURCES;
         dirty = 0;
         return d;
+    }
+
+    public void recordDamageTaken(double now, double amount) {
+        recentDamage.addLast(new double[]{now, amount});
+        while (!recentDamage.isEmpty() && now - recentDamage.peekFirst()[0] > 10.0) recentDamage.removeFirst();
+    }
+
+    /** Damage taken in the last {@code seconds} seconds. */
+    public double recentDamageTaken(double now, double seconds) {
+        double sum = 0;
+        for (double[] e : recentDamage) if (now - e[0] <= seconds) sum += e[1];
+        return sum;
     }
 
     public boolean isEngagedWith(UnitState other) {

@@ -59,6 +59,10 @@ public final class Ability {
     public final String animation;
     public final String sound;
     public final int iconColor;
+    /** Aura id of a shapeshift form the ability needs; the caster shifts automatically (druids). */
+    public final String requiredFormAura;
+    /** Dispel types this ability removes (derived from its effects; used by AI). */
+    public final java.util.Set<com.wowcraft.core.aura.DispelType> dispelTypes;
 
     private Ability(Builder b) {
         this.id = b.id;
@@ -101,6 +105,10 @@ public final class Ability {
         this.animation = b.animation;
         this.sound = b.sound;
         this.iconColor = b.iconColor;
+        this.requiredFormAura = b.requiredFormAura;
+        java.util.Set<com.wowcraft.core.aura.DispelType> dt = java.util.EnumSet.noneOf(com.wowcraft.core.aura.DispelType.class);
+        for (Effect e : b.effects) if (e instanceof Effects.DispelEffect de) dt.addAll(de.types);
+        this.dispelTypes = java.util.Collections.unmodifiableSet(dt);
     }
 
     public boolean isHelpful() {
@@ -168,6 +176,7 @@ public final class Ability {
         private String animation;
         private String sound;
         private int iconColor;
+        private String requiredFormAura;
 
         private Builder(String id, L10n name) {
             this.id = id;
@@ -385,6 +394,12 @@ public final class Ability {
 
         public Builder color(int argb) {
             this.iconColor = argb;
+            return this;
+        }
+
+        /** Requires (and auto-shifts into) a form aura. */
+        public Builder form(String formAuraId) {
+            this.requiredFormAura = formAuraId;
             return this;
         }
 

@@ -106,6 +106,16 @@ public final class Cond {
                 min + "+ enemies nearby", "не менее " + min + " противников рядом");
     }
 
+    /** At least {@code count} group members within 40 yd are below the health fraction (AoE healing cooldowns). */
+    public static Cond alliesBelow(double fraction, int count) {
+        int pct = (int) Math.round(fraction * 100);
+        return of(c -> {
+            int n = 0;
+            for (UnitState u : c.engine.groupMembersAround(c.caster, 40)) if (u.healthFraction() < fraction) n++;
+            return n >= count;
+        }, count + "+ allies below " + pct + "% health", "не менее " + count + " союзников со здоровьем ниже " + pct + "%");
+    }
+
     public static Cond hasPet() {
         return of(c -> c.caster.hasLivingPet(), "requires a pet", "требуется питомец");
     }

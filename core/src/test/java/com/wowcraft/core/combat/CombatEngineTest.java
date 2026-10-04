@@ -25,9 +25,8 @@ class CombatEngineTest {
 
     @BeforeAll
     static void content() {
+        com.wowcraft.core.content.Content.bootstrap();
         if (Registry.hasAbility("t_strike")) return;
-        Registry.register(Ability.builder("auto_attack", "Auto Attack", "Автоатака").passive().hidden().build());
-        Registry.register(Ability.builder("auto_shot", "Auto Shot", "Автовыстрел").passive().hidden().build());
         Registry.register(Ability.builder("t_strike", "Strike", "Удар").cost(ResourceType.RAGE, 20)
                 .effect(Effects.damage(Scaling.ap(1.0))).cooldown(6).build());
         Registry.register(Ability.builder("t_bolt", "Bolt", "Стрела").school(School.FIRE).ranged().cast(2.0)

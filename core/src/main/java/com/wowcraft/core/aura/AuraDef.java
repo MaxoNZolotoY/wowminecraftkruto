@@ -37,6 +37,7 @@ public final class AuraDef {
     public final Effect onExpire;
     public final Effect onRemove;
     public final boolean absorb;
+    public final boolean absorbMagicOnly;
     public final List<Trigger> triggers;
     /** Breaks when the holder takes more than this fraction of max health in a single hit (0 = never). */
     public final double breakOnDamageFraction;
@@ -78,6 +79,7 @@ public final class AuraDef {
         this.onExpire = b.onExpire;
         this.onRemove = b.onRemove;
         this.absorb = b.absorb;
+        this.absorbMagicOnly = b.absorbMagicOnly;
         this.triggers = Collections.unmodifiableList(new ArrayList<>(b.triggers));
         this.breakOnDamageFraction = b.breakOnDamageFraction;
         this.breakOnAnyDamage = b.breakOnAnyDamage;
@@ -130,6 +132,7 @@ public final class AuraDef {
         private boolean tickOnApply;
         private Effect onApply, onExpire, onRemove;
         private boolean absorb;
+        private boolean absorbMagicOnly;
         private final List<Trigger> triggers = new ArrayList<>();
         private double breakOnDamageFraction;
         private boolean breakOnAnyDamage;
@@ -181,6 +184,12 @@ public final class AuraDef {
             return this;
         }
 
+        /** Stacks refresh duration on each application (default behaviour; kept for readability). */
+        public Builder refreshOnStack() {
+            this.refreshOnApply = true;
+            return this;
+        }
+
         public Builder noRefresh() {
             this.refreshOnApply = false;
             return this;
@@ -191,8 +200,8 @@ public final class AuraDef {
             return this;
         }
 
-        public Builder mod(Modifier m) {
-            this.mods.add(m);
+        public Builder mod(Modifier... ms) {
+            java.util.Collections.addAll(this.mods, ms);
             return this;
         }
 
@@ -248,6 +257,12 @@ public final class AuraDef {
             return this;
         }
 
+        public Builder absorbMagic() {
+            this.absorb = true;
+            this.absorbMagicOnly = true;
+            return this;
+        }
+
         public Builder trigger(Trigger t) {
             this.triggers.add(t);
             return this;
@@ -260,6 +275,13 @@ public final class AuraDef {
 
         public Builder breakOnAnyDamage() {
             this.breakOnAnyDamage = true;
+            return this;
+        }
+
+        /** Self-applied control that never breaks on damage (Ice Block). */
+        public Builder noBreakAfter() {
+            this.breakOnDamageFraction = 0;
+            this.breakOnAnyDamage = false;
             return this;
         }
 
