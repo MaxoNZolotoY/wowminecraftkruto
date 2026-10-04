@@ -47,6 +47,18 @@ public final class CharacterBuilder {
      * @param gear     total stats from equipment (may be null)
      */
     public static void apply(CombatEngine engine, UnitState u, Spec spec, int level, Collection<String> talents, StatBlock gear) {
+        applyInternal(engine, u, spec, level, talents, gear, null);
+    }
+
+    /** Applies class, spec, level, talents and real equipment (stats, weapons, set bonuses, item effects). */
+    public static void apply(CombatEngine engine, UnitState u, Spec spec, int level, Collection<String> talents,
+                             com.wowcraft.core.item.Equipment equipment) {
+        StatBlock gear = equipment != null ? equipment.totalStats(spec) : null;
+        applyInternal(engine, u, spec, level, talents, gear, equipment);
+    }
+
+    private static void applyInternal(CombatEngine engine, UnitState u, Spec spec, int level, Collection<String> talents, StatBlock gear,
+                                      com.wowcraft.core.item.Equipment equipment) {
         ClassKit kit = Content.kit(spec.wowClass);
         u.wowClass = spec.wowClass;
         u.spec = spec;
@@ -91,6 +103,41 @@ public final class CharacterBuilder {
                 if (p.length == 2 && Registry.hasAbility(p[1])) u.knownAbilities.add(p[1]);
             }
         }
+        // equipment: weapons, tier sets, item effects
+        java.util.Map<String, Integer> itemAuraStacks = new java.util.HashMap<>();
+        if (equipment != null) {
+            com.wowcraft.core.combat.WeaponInfo mh = equipment.mainHand();
+            com.wowcraft.core.combat.WeaponInfo oh = equipment.offHand();
+            u.mainHand = mh != null ? mh : com.wowcraft.core.combat.WeaponInfo.FISTS;
+            u.offHand = oh != null && com.wowcraft.core.item.Proficiency.dualWields(spec) ? oh : null;
+            for (var en : equipment.setCounts().entrySet()) {
+                com.wowcraft.core.item.TierSet set = com.wowcraft.core.item.ItemRegistry.set(en.getKey());
+                if (set == null || set.wowClass() != spec.wowClass) continue;
+                if (en.getValue() >= 2) {
+                    u.permanentMods.addAll(set.bonus2());
+                    if (set.aura2() != null) passiveAuras.add(set.aura2());
+                }
+                if (en.getValue() >= 4) {
+                    u.permanentMods.addAll(set.bonus4());
+                    if (set.aura4() != null) passiveAuras.add(set.aura4());
+                }
+            }
+            u.tags.remove("trinket_1");
+            u.tags.remove("trinket_2");
+            for (var en : equipment.all().entrySet()) {
+                com.wowcraft.core.item.ItemEffect fx = com.wowcraft.core.item.ItemRegistry.effect(en.getValue().effectId);
+                if (fx == null) continue;
+                int mag = fx.magnitude(en.getValue().ilvl);
+                if (fx.kind() == com.wowcraft.core.item.ItemEffect.Kind.ON_USE && fx.abilityId() != null) {
+                    u.knownAbilities.add(fx.abilityId());
+                    u.tags.put(fx.tagKey(), mag);
+                    if (en.getKey() == com.wowcraft.core.item.EquipSlot.TRINKET_1) u.tags.put("trinket_1", fx.abilityId());
+                    if (en.getKey() == com.wowcraft.core.item.EquipSlot.TRINKET_2) u.tags.put("trinket_2", fx.abilityId());
+                } else if (fx.auraId() != null) {
+                    itemAuraStacks.merge(fx.auraId(), mag, Integer::sum);
+                }
+            }
+        }
         u.knownAbilities.add("gladiators_medallion");
         u.knownAbilities.add("healing_potion");
         u.knownAbilities.add("damage_potion");
@@ -98,11 +145,16 @@ public final class CharacterBuilder {
 
         // passives: drop old ones, apply new ones
         for (AuraInstance a : new ArrayList<>(u.auras().all())) {
-            if (a.def.passive && !passiveAuras.contains(a.def.id)) engine.removeAura(a, false);
+            if (!a.def.passive) continue;
+            Integer stacks = itemAuraStacks.get(a.def.id);
+            if (!passiveAuras.contains(a.def.id) && (stacks == null || stacks != a.stacks)) engine.removeAura(a, false);
         }
         EffectContext ctx = new EffectContext(engine, u, u, null, null, null);
         for (String id : passiveAuras) {
             if (Registry.hasAura(id) && !u.auras().has(id)) engine.applyAura(ctx, u, id, 1, -1);
+        }
+        for (var en : itemAuraStacks.entrySet()) {
+            if (Registry.hasAura(en.getKey()) && !u.auras().has(en.getKey())) engine.applyAura(ctx, u, en.getKey(), en.getValue(), -1);
         }
         // forms / stances are dropped on respec
         AuraInstance form = u.auras().formAura();

@@ -123,6 +123,8 @@ public final class UnitState {
     public String packId;
     /** Mythic+ enemy forces value. */
     public double forces;
+    /** Movement wish of AI controlled units (read by the platform each tick). */
+    public MoveIntent move = MoveIntent.STOP;
     /** Arbitrary script data. */
     public final Map<String, Object> tags = new HashMap<>();
     int dirty = 0xFFFF;
@@ -230,6 +232,10 @@ public final class UnitState {
 
     public boolean inCombat() {
         return inCombat;
+    }
+
+    public double lastCombatAtPublic() {
+        return lastCombatAt;
     }
 
     public double gcdEnd() {

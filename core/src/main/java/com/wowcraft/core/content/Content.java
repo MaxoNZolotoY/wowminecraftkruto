@@ -23,6 +23,8 @@ public final class Content {
             c.register();
             KITS.put(c.kit().wowClass, c.kit());
         }
+        ItemContent.register();
+        PveContent.register();
     }
 
     private static ClassContent[] classes() {

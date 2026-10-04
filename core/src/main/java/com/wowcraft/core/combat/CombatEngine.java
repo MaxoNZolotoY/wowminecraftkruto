@@ -58,6 +58,8 @@ public final class CombatEngine {
     private Hostility hostility = Hostility.TEAMS;
     private int procDepth;
     private int nextLocalId = -1;
+    /** Optional game-rule check before casting (battle res charges, arena preparation...). */
+    private java.util.function.BiFunction<UnitState, Ability, CastResult> castFilter;
     private long scheduleSeq;
 
     private record Scheduled(double at, long seq, Runnable task) implements Comparable<Scheduled> {
@@ -80,6 +82,10 @@ public final class CombatEngine {
 
     public WorldAccess world() {
         return world;
+    }
+
+    public void setCastFilter(java.util.function.BiFunction<UnitState, Ability, CastResult> filter) {
+        this.castFilter = filter;
     }
 
     public void setHostility(Hostility h) {
@@ -532,6 +538,10 @@ public final class CombatEngine {
 
         CastAttempt at = validate(caster, a, target, point, true);
         if (at.result != CastResult.OK) return fail(caster, at.result, a);
+        if (castFilter != null) {
+            CastResult fr = castFilter.apply(caster, a);
+            if (fr != null && fr != CastResult.OK) return fail(caster, fr, a);
+        }
         return begin(caster, a, at);
     }
 
