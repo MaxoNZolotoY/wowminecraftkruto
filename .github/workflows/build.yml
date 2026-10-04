@@ -47,3 +47,24 @@ jobs:
           name: smoke-log
           path: smoke.log
           if-no-files-found: ignore
+
+      - name: Client smoke test (virtual display)
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri > /dev/null
+          mkdir -p fabric/run-client
+          printf 'onboardAccessibility:false\npauseOnLostFocus:false\nrenderDistance:6\nsimulationDistance:5\nguiScale:2\nlang:en_us\nsoundCategory_master:0.0\nskipMultiplayerWarning:true\ntutorialStep:none\n' > fabric/run-client/options.txt
+          timeout 1800 xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew :fabric:runClientSmoke --no-daemon > client.log 2>&1 || true
+          grep -E "client-smoke|WoWCraft|ERROR|Exception|Crash|OpenGL|Backend library" client.log | tail -150
+          grep -q "WOWCRAFT CLIENT SMOKE TEST PASSED" client.log
+
+      - name: Upload client smoke test log and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-smoke
+          path: |
+            client.log
+            fabric/run-client/screenshots/
+            fabric/run-client/crash-reports/
+            fabric/run-client/logs/latest.log
+          if-no-files-found: ignore

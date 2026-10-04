@@ -12,3 +12,4 @@ bin/
 *.log
 fabric/run-smoke/
 fabric/run/
+fabric/run-client/

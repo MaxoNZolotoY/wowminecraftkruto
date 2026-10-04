@@ -50,6 +50,8 @@ public final class ClientState {
     public static final Deque<Timed<S2C.Error>> errors = new ArrayDeque<>();
     public static long selfAt;
     public static boolean helloSent;
+    /** Message counts by type (diagnostics, client smoke test). */
+    public static final Map<String, Integer> received = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** A message with the time it arrived (ms). */
     public static final class Timed<T> {
@@ -132,6 +134,7 @@ public final class ClientState {
 
     public static void handle(Object msg) {
         MinecraftClient mc = MinecraftClient.getInstance();
+        received.merge(msg.getClass().getSimpleName(), 1, Integer::sum);
         if (msg instanceof S2C.Self s) {
             self = s;
             selfAt = System.currentTimeMillis();

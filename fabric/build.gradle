@@ -29,6 +29,15 @@ loom {
             runDir "run-smoke"
             ideConfigGenerated false
         }
+        // Scripted client self-test used by CI under a virtual display: ./gradlew :fabric:runClientSmoke
+        clientSmoke {
+            client()
+            name "WoWCraft client smoke test"
+            vmArg "-Dwowcraft.clientSmoke=true"
+            programArgs "--width", "1280", "--height", "720"
+            runDir "run-client"
+            ideConfigGenerated false
+        }
     }
 }
 

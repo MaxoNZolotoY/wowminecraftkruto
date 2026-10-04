@@ -54,5 +54,6 @@ public final class WowCraftClient implements ClientModInitializer {
             }
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ClientState.reset());
+        if (ClientSmokeTest.enabled()) ClientSmokeTest.start();
     }
 }
